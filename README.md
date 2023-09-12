@@ -11,6 +11,6 @@ So, at a minimum there will be these features,\
 Writing to console,\
 Some form of loops,\
 Mod operator,\
-If statements.\
+If statements.
 
 Once that is achieved I will decide whether to continue developing or not.
