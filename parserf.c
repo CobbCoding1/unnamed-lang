@@ -19,16 +19,20 @@ typedef struct Node {
   struct Node *left;
 } Node;
 
-void print_tree(Node *node){
+void print_tree(Node *node, int indent, char *identifier){
   if(node == NULL){
     return;
   }
+  for(int i = 0; i < indent; i++){
+    printf(" ");
+  }
+  printf("%s -> ", identifier);
   for(size_t i = 0; node->value[i] != '\0'; i++){
     printf("%c", node->value[i]);
   }
   printf("\n");
-  print_tree(node->left);
-  print_tree(node->right);
+  print_tree(node->left, indent + 1, "left");
+  print_tree(node->right, indent + 1, "right");
 }
 
 Node *init_node(Node *node, char *value, NodeTypes type){
@@ -47,8 +51,6 @@ Token *parser(Token *tokens){
   Node *left = malloc(sizeof(Node));
   Node *right = malloc(sizeof(Node));
   root = init_node(root, "PROGRAM", BEGINNING);
-
-  print_tree(root);
 
   Node *current = root;
 
@@ -97,6 +99,6 @@ Token *parser(Token *tokens){
     }
     current_token++;
   }
-  print_tree(root);
+  print_tree(root, 0, "root");
   return current_token;
 }
