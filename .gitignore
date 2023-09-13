@@ -1,1 +1,5 @@
 build/main
+assembly/
+generated.asm
+generated
+generated.o
