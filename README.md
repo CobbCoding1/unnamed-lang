@@ -1,8 +1,7 @@
 # Unnamed-lang
 A programming language compiler built using C. For learning purposes only!
 
-Currently have a working Lexer on the test file (just a simple exit statement).
-Working on the Parser as of now.
+Currently can fully compile an exit syscall. More to come in the future!
 
 The goal of the language is to be able to write FizzBuzz properly (as a minimum, it may go beyond that).
 This means a few things will have to be implemented, which will be usable for many other projects.
