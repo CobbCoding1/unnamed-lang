@@ -1,7 +1,8 @@
 #ifndef LEXER_H_
-#define LEXER_H
+#define LEXER_H_
 
 typedef enum {
+  BEGINNING,
   INT,
   KEYWORD,
   SEPARATOR,

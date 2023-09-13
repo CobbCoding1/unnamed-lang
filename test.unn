@@ -1,1 +1,2 @@
-exit(1);
+int x = 27;
+exit(x);
