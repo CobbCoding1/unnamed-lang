@@ -109,7 +109,7 @@ Token *lexer(FILE *file){
   current[length + 1] = '\0';
   int current_index = 0;
 
-  Token *tokens = malloc(sizeof(Token));
+  Token *tokens = malloc(sizeof(Token) * 12);
   tokens_index = 0;
 
   while(current[current_index] != '\0'){
@@ -120,6 +120,7 @@ Token *lexer(FILE *file){
       tokens_index++;
     } else if(current[current_index] == '('){
       token = generate_separator_or_operator(current, &current_index, SEPARATOR);
+      printf("CURRENT %s\n", token->value);
       tokens[tokens_index] = *token;
       tokens_index++;
     } else if(current[current_index] == ')'){

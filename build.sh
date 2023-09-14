@@ -1,1 +1,1 @@
-gcc main.c lexerf.c parserf.c codegeneratorf.c -o build/main -Wall -Wextra
+gcc main.c lexerf.c parserf.c codegeneratorf.c hashmap/hashmap.c -o build/main -Wall -Wextra
