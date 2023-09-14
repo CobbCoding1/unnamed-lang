@@ -19,17 +19,27 @@ void traverse_tree(Node *node, int is_left, FILE *file){
 
   }
   if(node->type == OPERATOR){
-    fprintf(file, "  mov rdi, %s\n", node->left->value);
-    Node *tmp = node;
-    while(tmp->right->type == OPERATOR){
-      printf("VASJKLDL %s\n", tmp->right->value);
-      char *oper = search(tmp->value[0])->data;
-      tmp = tmp->right;
-      fprintf(file, "  %s rdi, %s\n", oper, tmp->left->value);
+    if(strcmp(node->value, "/") == 0){
+      fprintf(file, "  mov rax, %s\n", node->right->value);
+      fprintf(file, "  mov rbx, %s\n", node->left->value);
+      fprintf(file, "  idiv rbx\n");
+      fprintf(file, "  mov rdi, rax\n");
+      fprintf(file, "  mov rax, 60\n");
+      node->left = NULL;
+      node->right = NULL;
+    } else {
+         fprintf(file, "  mov rdi, %s\n", node->left->value);
+          Node *tmp = node;
+          while(tmp->right->type == OPERATOR){
+            printf("VASJKLDL %s\n", tmp->right->value);
+            char *oper = search(tmp->value[0])->data;
+            tmp = tmp->right;
+            fprintf(file, "  %s rdi, %s\n", oper, tmp->left->value);
+          }
+          fprintf(file, "  %s rdi, %s\n", search(tmp->value[0])->data, tmp->right->value);
+          node->left = NULL;
+          node->right = NULL;
     }
-    fprintf(file, "  %s rdi, %s\n", search(tmp->value[0])->data, tmp->right->value);
-    node->left = NULL;
-    node->right = NULL;
   } 
   if(node->type == INT){
     fprintf(file, "  mov rdi, %s\n", node->value);
@@ -57,6 +67,8 @@ void traverse_tree(Node *node, int is_left, FILE *file){
 int generate_code(Node *root){
   insert('-', "sub");
   insert('+', "add");
+  insert('*', "imul");
+  insert('/', "idiv");
   FILE *file = fopen("generated.asm", "w");
   assert(file != NULL && "FILE COULD NOT BE OPENED\n");
 

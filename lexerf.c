@@ -135,6 +135,14 @@ Token *lexer(FILE *file){
       token = generate_separator_or_operator(current, &current_index, OPERATOR);
       tokens[tokens_index] = *token;
       tokens_index++;
+    } else if(current[current_index] == '*'){
+      token = generate_separator_or_operator(current, &current_index, OPERATOR);
+      tokens[tokens_index] = *token;
+      tokens_index++;
+    } else if(current[current_index] == '/'){
+      token = generate_separator_or_operator(current, &current_index, OPERATOR);
+      tokens[tokens_index] = *token;
+      tokens_index++;
     } else if(isdigit(current[current_index])){
       token = generate_number(current, &current_index); 
       tokens[tokens_index] = *token;
