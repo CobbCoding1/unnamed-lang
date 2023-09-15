@@ -7,6 +7,7 @@ typedef enum {
   KEYWORD,
   SEPARATOR,
   OPERATOR,
+  IDENTIFIER,
   END_OF_TOKENS,
 } TokenType;
 

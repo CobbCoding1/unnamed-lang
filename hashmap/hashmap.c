@@ -8,8 +8,8 @@
 #define SIZE 20
 
 struct DataItem {
-   char *data;   
-char key;
+  char *data;   
+  char key;
 };
 
 struct DataItem* hashArray[SIZE]; 
