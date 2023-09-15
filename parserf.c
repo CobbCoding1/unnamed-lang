@@ -86,6 +86,119 @@ Token *generate_operation_nodes(Token *current_token, Node *current_node){
   return current_token;
 }
 
+void handle_exit_syscall(Node *root, Token *current_token, Node *current){
+    Node *exit_node = malloc(sizeof(Node));
+    exit_node = init_node(exit_node, current_token->value, KEYWORD);
+    root->right = exit_node;
+    current = exit_node;
+    current_token++;
+    if(current_token->type == END_OF_TOKENS){
+      print_error("Invalid Syntax on OPEN");
+    }
+    if(strcmp(current_token->value, "(") == 0 && current_token->type == SEPARATOR){
+      Node *open_paren_node = malloc(sizeof(Node));
+      open_paren_node = init_node(open_paren_node, current_token->value, SEPARATOR);
+      current->left = open_paren_node;
+      current_token++;
+      if(current_token->type == END_OF_TOKENS){
+        print_error("Invalid Syntax on INT");
+      }
+      if(current_token->type == INT || current_token->type == IDENTIFIER){
+        current_token++;
+        if(current_token->type == OPERATOR && current_token != NULL){
+          current_token = generate_operation_nodes(current_token, current);
+          current_token--;
+        } else {
+          current_token--;
+          Node *expr_node = malloc(sizeof(Node));
+          expr_node = init_node(expr_node, current_token->value, current_token->type);
+          current->left->left = expr_node;
+        }
+        current_token++;
+        printf("current token: %s\n", current_token->value);
+        if(current_token->type == END_OF_TOKENS){
+          print_error("Invalid Syntax on cLOSE");
+        }
+        if(strcmp(current_token->value, ")") == 0 && current_token->type == SEPARATOR && current_token->type != END_OF_TOKENS){
+          Node *close_paren_node = malloc(sizeof(Node));
+          close_paren_node = init_node(close_paren_node, current_token->value, SEPARATOR);
+          current->left->right = close_paren_node;
+          current_token++;
+          if(current_token->type == END_OF_TOKENS){
+            print_error("Invalid Syntax on SEMI");
+          }
+          if(strcmp(current_token->value, ";") == 0 && current_token->type == SEPARATOR){
+            Node *semi_node = malloc(sizeof(Node));
+            semi_node = init_node(semi_node, current_token->value, SEPARATOR);
+            current->right = semi_node;
+          } else {
+            print_error("Invalid Syntax on SEMI");
+          }
+        } else {
+            print_error("Invalid Syntax on CLOSE");
+        }
+      } else {
+        print_error("Invalid Syntax INT");
+      }
+  } else {
+    print_error("Invalid Syntax OPEN");
+  }
+
+}
+
+void handle_token_errors(char *error_text, Token *current_token, TokenType type){
+  if(current_token->type == END_OF_TOKENS || current_token->type != type){
+    print_error(error_text);
+  }
+}
+
+Node *create_variables(Node *root, Token *current_token, Node *current){
+  Node *var_node = malloc(sizeof(Node));
+  var_node = init_node(var_node, current_token->value, KEYWORD);
+  current->left = var_node;
+  current = var_node;
+  current_token++;
+  handle_token_errors("Invalid syntax after INT", current_token, IDENTIFIER);
+  if(current_token->type == IDENTIFIER){
+    Node *identifier_node = malloc(sizeof(Node));
+    identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
+    current->left = identifier_node;
+    current = identifier_node;
+    current_token++;
+  }
+  handle_token_errors("Invalid Syntax After Identifier", current_token, OPERATOR);
+
+  if(current_token->type == OPERATOR){
+    if(strcmp(current_token->value, "=")){
+      print_error("Invalid Variable Syntax on =");
+    }
+    Node *equals_node = malloc(sizeof(Node));
+    equals_node = init_node(equals_node, current_token->value, OPERATOR);
+    current->left = equals_node;
+    current = equals_node;
+    current_token++;
+  }
+  handle_token_errors("Invalid Syntax After Equals", current_token, INT);
+
+  if(current_token->type == INT){
+    Node *expr_node = malloc(sizeof(Node));
+    expr_node = init_node(expr_node, current_token->value, INT);
+    current->left = expr_node;
+    current_token++;
+  }
+
+  handle_token_errors("Invalid Syntax After Expression", current_token, SEPARATOR);
+
+  current = var_node;
+  if(strcmp(current_token->value, ";") == 0){
+    Node *semi_node = malloc(sizeof(Node));
+    semi_node = init_node(semi_node, current_token->value, IDENTIFIER);
+    current->right = semi_node;
+    current = semi_node;
+  }
+  return current;
+}
+
 Node *parser(Token *tokens){
   Token *current_token = &tokens[0];
   Node *root = malloc(sizeof(Node));
@@ -97,72 +210,16 @@ Node *parser(Token *tokens){
     if(current == NULL){
       break;
     }
-    if(current == root){
-      //;
-    }
-
     switch(current_token->type){
       case KEYWORD:
         printf("TOKEN VALUE: %s\n", current_token->value);
         if(strcmp(current_token->value, "EXIT") == 0){
-          Node *exit_node = malloc(sizeof(Node));
-          exit_node = init_node(exit_node, current_token->value, KEYWORD);
-          root->right = exit_node;
-          current = exit_node;
-          current_token++;
-          if(current_token->type == END_OF_TOKENS){
-            print_error("Invalid Syntax on OPEN");
-          }
-          if(strcmp(current_token->value, "(") == 0 && current_token->type == SEPARATOR){
-            Node *open_paren_node = malloc(sizeof(Node));
-            open_paren_node = init_node(open_paren_node, current_token->value, SEPARATOR);
-            current->left = open_paren_node;
-            current_token++;
-            if(current_token->type == END_OF_TOKENS){
-              print_error("Invalid Syntax on INT");
-            }
-            if(current_token->type == INT){
-              current_token++;
-              if(current_token->type == OPERATOR && current_token != NULL){
-                current_token = generate_operation_nodes(current_token, current);
-                current_token--;
-              } else {
-                current_token--;
-                Node *expr_node = malloc(sizeof(Node));
-                expr_node = init_node(expr_node, current_token->value, INT);
-                current->left->left = expr_node;
-              }
-              current_token++;
-              printf("current token: %s\n", current_token->value);
-              if(current_token->type == END_OF_TOKENS){
-                print_error("Invalid Syntax on cLOSE");
-              }
-              if(strcmp(current_token->value, ")") == 0 && current_token->type == SEPARATOR && current_token->type != END_OF_TOKENS){
-                Node *close_paren_node = malloc(sizeof(Node));
-                close_paren_node = init_node(close_paren_node, current_token->value, SEPARATOR);
-                current->left->right = close_paren_node;
-                current_token++;
-                if(current_token->type == END_OF_TOKENS){
-                  print_error("Invalid Syntax on SEMI");
-                }
-                if(strcmp(current_token->value, ";") == 0 && current_token->type == SEPARATOR){
-                  Node *semi_node = malloc(sizeof(Node));
-                  semi_node = init_node(semi_node, current_token->value, SEPARATOR);
-                  current->right = semi_node;
-                  break;
-                } else {
-                  print_error("Invalid Syntax on SEMI");
-                }
-              } else {
-                  print_error("Invalid Syntax on CLOSE");
-              }
-            } else {
-              print_error("Invalid Syntax INT");
-            }
-        } else {
-          print_error("Invalid Syntax OPEN");
+          handle_exit_syscall(root, current_token, current);
         }
-      }
+        if(strcmp(current_token->value, "INT") == 0){
+          current = create_variables(root, current_token, current);
+        }
+        break;
       case SEPARATOR:
         break; 
       case OPERATOR:

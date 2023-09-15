@@ -9,40 +9,47 @@
 #include "./hashmap/hashmap.h"
 
 Node *generate_operator_code(Node *node, int syscall_number, FILE *file){
+  if(strcmp(node->value, "=") == 0){
+    fprintf(file, "  push %s\n", node->left->value);
+    node->left = NULL;
+    printf("EQUALS\n");
+  } else {
    Node *tmp = node;
     fprintf(file, "  mov rax, %s\n", node->left->value);
     int did_loop = 0;
     while(tmp->right->type == OPERATOR){
-      did_loop = 1;
-      char *oper = search(tmp->value[0])->data;
-      tmp = tmp->right;
-      fprintf(file, "  mov rbx, %s\n", tmp->left->value);
-      if(strcmp(oper, "mul") == 0 || strcmp(oper, "div") == 0){
-        fprintf(file, "  %s rbx\n", oper);
-        fprintf(file, "  mov rdi, rax\n");
-      } else {
-        fprintf(file, "  %s rax, rbx\n", oper);
-        fprintf(file, "  mov rdi, rax\n");
+        did_loop = 1;
+        char *oper = search(tmp->value[0])->data;
+        tmp = tmp->right;
+        fprintf(file, "  mov rbx, %s\n", tmp->left->value);
+        if(strcmp(oper, "mul") == 0 || strcmp(oper, "div") == 0){
+          fprintf(file, "  %s rbx\n", oper);
+          fprintf(file, "  mov rdi, rax\n");
+        } else {
+          fprintf(file, "  %s rax, rbx\n", oper);
+          fprintf(file, "  mov rdi, rax\n");
+        }
       }
-    }
-    if(did_loop){
-      if(tmp->value[0] == '*' || tmp->value[0] == '/'){
-        fprintf(file, "  mov rax, rdi\n");
+      if(did_loop){
+        if(tmp->value[0] == '*' || tmp->value[0] == '/'){
+          fprintf(file, "  mov rax, rdi\n");
+          fprintf(file, "  mov rbx, %s\n", tmp->right->value);
+          fprintf(file, "  %s rbx\n", search(tmp->value[0])->data);
+          fprintf(file, "  mov rdi, rax\n");
+        } else {
+          fprintf(file, "  %s rdi, %s\n", search(tmp->value[0])->data, tmp->right->value);
+        }
+      } else {
         fprintf(file, "  mov rbx, %s\n", tmp->right->value);
         fprintf(file, "  %s rbx\n", search(tmp->value[0])->data);
         fprintf(file, "  mov rdi, rax\n");
-      } else {
-        fprintf(file, "  %s rdi, %s\n", search(tmp->value[0])->data, tmp->right->value);
       }
-    } else {
-      fprintf(file, "  mov rbx, %s\n", tmp->right->value);
-      fprintf(file, "  %s rbx\n", search(tmp->value[0])->data);
-      fprintf(file, "  mov rdi, rax\n");
-    }
 
-    fprintf(file, "  mov rax, %d\n", syscall_number);
-    node->left = NULL;
-    node->right = NULL;
+      fprintf(file, "  mov rax, %d\n", syscall_number);
+      fprintf(file, "  syscall\n");
+      node->left = NULL;
+      node->right = NULL;
+  }
   return node;
 }
 
@@ -52,22 +59,34 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
   }
   if(strcmp(node->value, "EXIT") == 0){
     syscall_number = 60;
-    //fprintf(file, "  mov rax, 60\n");
+  }
+  if(strcmp(node->value, "INT") == 0){
+    // Push
   }
   if(strcmp(node->value, "(") == 0){
 
   }
   if(node->type == OPERATOR){
     generate_operator_code(node, syscall_number, file);
+    printf("OPERATOR ERRORS\n");
   } 
   if(node->type == INT){
+    fprintf(file, "  mov rax, %d\n", syscall_number);
     fprintf(file, "  mov rdi, %s\n", node->value);
+    fprintf(file, "  syscall\n");
+  }
+  if(node->type == IDENTIFIER){
+    if(syscall_number == 60){
+       fprintf(file, "  mov rax, %d\n", syscall_number);
+       fprintf(file, "  pop rdi\n");
+       fprintf(file, "  syscall\n");
+    } 
   }
   if(strcmp(node->value, ")") == 0){
 
   }
   if(strcmp(node->value, ";") == 0){
-    fprintf(file, "  syscall\n");
+
   }
   if(is_left){
 
