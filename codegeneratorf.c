@@ -7,19 +7,27 @@
 
 #include "lexerf.h"
 #include "parserf.h"
+#include "./hashmap/hashmapoperators.h"
+//#include "./hashmap/hashmapvars.h"
 #include "./hashmap/hashmap.h"
-#include "./hashmap/hashmapvars.h"
 
 size_t stack_size = 0;
+const unsigned initial_size = 100;
+struct hashmap_s hashmap;
 
 void push(char *reg, FILE *file){
   fprintf(file, "  push %s\n", reg);
   stack_size++;
 }
 
+void push_var(size_t stack_pos, FILE *file){
+  fprintf(file, "  push QWORD [rsp + %zu]\n", (stack_size - stack_pos) * 8);
+  stack_size++;
+}
+
 void pop(char *reg, FILE *file){
   fprintf(file, "  pop %s\n", reg);
-  stack_size++;
+  stack_size--;
 }
 
 void mov(char *reg1, char *reg2, FILE *file){
@@ -62,7 +70,7 @@ Node *handle_div(Node *tmp, FILE *file){
   return tmp;
 }
 
-Node *generate_operator_code(Node *node, int syscall_number, FILE *file){
+Node *generate_operator_code(Node *node, FILE *file){
   Node *tmp = node;
   mov("rax", tmp->left->value, file);
   push("rax", file);
@@ -125,11 +133,14 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
   }
   if(strcmp(node->value, "INT") == 0){
     // Push
-    printf("ASHDJK\n");
-    insert_var(node->left->value, stack_size);
     push(node->left->left->left->value, file);
+    size_t *cur_size = malloc(sizeof(size_t));
+    *cur_size = stack_size;
+    if(hashmap_put(&hashmap, node->left->value, strlen(node->left->value), cur_size) != 0){
+      printf("ERROR: Could not insert into hash table!\n");
+      exit(1);
+    }
     node->left = NULL;
-    printf("EQUALS\n");
 
   }
   if(strcmp(node->value, "(") == 0){
@@ -139,23 +150,24 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     if(node->value[0] == '='){
 
     } else {
-      generate_operator_code(node, syscall_number, file);
+      generate_operator_code(node, file);
     }
   } 
   if(node->type == INT){
     fprintf(file, "  mov rax, %s\n", node->value);
     push("rax", file);
-    //fprintf(file, "  mov rax, %d\n", syscall_number);
-    //fprintf(file, "  mov rdi, %s\n", node->value);
-    //fprintf(file, "  syscall\n");
   }
   if(node->type == IDENTIFIER){
     if(syscall_number == 60){
        fprintf(file, "  mov rax, %d\n", syscall_number);
-       display_vars();
-       printf("IDENFITIER TYPE: %s\n", node->value);
-       fprintf(file, "  push QWORD [rsi + %zu]", search_var(node->value)->data * 8);
-       //push("QWORD [rsi + " + search_var(node->value)->data * 8 + "]", file);
+       size_t *var_value = malloc(sizeof(size_t));
+       var_value = hashmap_get(&hashmap, node->value, strlen(node->value));
+       if(var_value == NULL){
+         printf("ERROR: Value not in hashmap\n");
+         exit(1);
+       }
+       push_var(*var_value, file);
+       //fprintf(file, "  push QWORD [rsp + %zu]\n", (stack_size - *var_value) * 8);
        pop("rdi", file);
        fprintf(file, "  syscall\n");
     } 
@@ -191,6 +203,8 @@ int generate_code(Node *root){
   insert('/', "div");
   FILE *file = fopen("generated.asm", "w");
   assert(file != NULL && "FILE COULD NOT BE OPENED\n");
+
+  assert(hashmap_create(initial_size, &hashmap) == 0 && "ERROR: Could not create hashmap\n");
 
   fprintf(file, "section .text\n");
   fprintf(file, "  global _start\n\n");

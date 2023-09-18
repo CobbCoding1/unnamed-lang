@@ -152,7 +152,7 @@ void handle_token_errors(char *error_text, Token *current_token, TokenType type)
   }
 }
 
-Node *create_variables(Node *root, Token *current_token, Node *current){
+Node *create_variables(Token *current_token, Node *current){
   Node *var_node = malloc(sizeof(Node));
   var_node = init_node(var_node, current_token->value, KEYWORD);
   current->left = var_node;
@@ -217,7 +217,7 @@ Node *parser(Token *tokens){
           handle_exit_syscall(root, current_token, current);
         }
         if(strcmp(current_token->value, "INT") == 0){
-          current = create_variables(root, current_token, current);
+          current = create_variables(current_token, current);
         }
         break;
       case SEPARATOR:

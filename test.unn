@@ -1,2 +1,5 @@
 int myvar = 15;
-exit(myvar);
+int y = 10;
+int x = 12;
+int z = 99;
+exit(z);
