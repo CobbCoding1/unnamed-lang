@@ -1,7 +1,2 @@
-int x = 7;
-int y = 9;
-int z = 10;
-int ajsdlk = 11;
-int foo = 12;
-int als = 15;
-exit(x + 5);
+int myvar = 15;
+exit(myvar);
