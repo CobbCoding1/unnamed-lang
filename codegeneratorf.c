@@ -16,6 +16,18 @@ size_t current_stack_size = 0;
 const unsigned initial_size = 100;
 struct hashmap_s hashmap;
 
+static int log_and_free_out_of_scope(void* const context, struct hashmap_element_s* const e){
+  (void)(context);
+  if(*(size_t*)e->data > current_stack_size){
+    if(hashmap_remove(&hashmap, e->key, strlen(e->key)) != 0){
+      printf("COULD NOT REMOVE ELEMENT\n");
+    } else {
+      printf("REMOVED %s\n", (char*)e->key);
+    }
+  }
+  return -1;
+}
+
 void push(char *reg, FILE *file){
   fprintf(file, "  push %s\n", reg);
   stack_size++;
@@ -264,7 +276,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
       size_t *var_value = malloc(sizeof(size_t));
       var_value = hashmap_get(&hashmap, value->value, strlen(value->value));
       if(var_value == NULL){
-        printf("ERROR: Value not in hashmap\n");
+        printf("ERROR: %s Not Declared In Current Context\n", value->value);
         exit(1);
       }
       push_var(*var_value, file);
@@ -305,7 +317,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
        size_t *var_value = malloc(sizeof(size_t));
        var_value = hashmap_get(&hashmap, node->value, strlen(node->value));
        if(var_value == NULL){
-         printf("ERROR: Value not in hashmap\n");
+         printf("ERROR: Not Declared in current scope: %s\n", node->value);
          exit(1);
        }
        push_var(*var_value, file);
@@ -323,8 +335,12 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
   }
 
   if(strcmp(node->value, "}") == 0){
+    void* log = malloc(sizeof(char));
+    if(hashmap_iterate_pairs(&hashmap, log_and_free_out_of_scope, (void*)log) != 0){
+      printf("ERROR: Could not free\n");
+      exit(1);
+    }
     for(; stack_size > current_stack_size;){
-      printf("CURRENT STACK SIZE\n");
       pop("rsi", file);
     }
   }
