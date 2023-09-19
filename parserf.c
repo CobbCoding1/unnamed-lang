@@ -345,6 +345,9 @@ Node *parser(Token *tokens){
 
   Node *current = root;
 
+  Node *open_curly = malloc(sizeof(Node));
+  Node *close_curly = malloc(sizeof(Node));
+
   while(current_token->type != END_OF_TOKENS){
     if(current == NULL){
       break;
@@ -360,6 +363,43 @@ Node *parser(Token *tokens){
         }
         break;
       case SEPARATOR:
+        if(strcmp(current_token->value, "{") == 0){
+          Token *temp = current_token;
+          open_curly = init_node(open_curly, temp->value, SEPARATOR);
+          current->left = open_curly;
+          current = open_curly;
+          int curly_count = 0;
+          temp++;
+          while(temp->type != END_OF_TOKENS){
+            if(temp == NULL){
+              printf("ERROR: Expected }\n");
+              exit(1);
+            }
+            if(temp->type == SEPARATOR){
+              if(strcmp(temp->value, "{") == 0){
+                curly_count++;
+              }
+              if(strcmp(temp->value, "}") == 0){
+                if(curly_count != 0){
+                  curly_count--;
+                } else {
+                  close_curly = init_node(close_curly, temp->value, SEPARATOR);
+                  current->right = close_curly;
+                  break;
+                }
+              }
+            }
+            temp++;
+          }
+          if(temp->type == END_OF_TOKENS){
+            printf("ERROR: expected }\n");
+            exit(1);
+          }
+          //
+        }
+        if(strcmp(current_token->value, "}") == 0){
+          current = close_curly;
+        }
         break; 
       case OPERATOR:
         break;

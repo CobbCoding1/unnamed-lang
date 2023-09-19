@@ -12,6 +12,7 @@
 #include "./hashmap/hashmap.h"
 
 size_t stack_size = 0;
+size_t current_stack_size = 0;
 const unsigned initial_size = 100;
 struct hashmap_s hashmap;
 
@@ -157,7 +158,7 @@ Node *generate_operator_code(Node *node, FILE *file){
           exit(1);
         }
         push_var(*element, file);
-        pop("rax", file);
+        pop("rbx", file);
       }
       fprintf(file, "  %s rbx\n", search(tmp->value[0])->data);
       push("rax", file);
@@ -316,6 +317,18 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
   if(strcmp(node->value, ")") == 0){
 
   }
+
+  if(strcmp(node->value, "{") == 0){
+    current_stack_size = stack_size;
+  }
+
+  if(strcmp(node->value, "}") == 0){
+    for(; stack_size > current_stack_size;){
+      printf("CURRENT STACK SIZE\n");
+      pop("rsi", file);
+    }
+  }
+
   if(strcmp(node->value, ";") == 0){
     if(syscall_number == 60){
       fprintf(file, "  mov rax, %d\n", syscall_number);

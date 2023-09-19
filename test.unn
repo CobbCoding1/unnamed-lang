@@ -1,3 +1,11 @@
+
+{
+  int scopeagain = 12;
+  int again = 11;
+  int laksdl = 12;
+}
+
 int x = 10;
 int y = 3;
-exit(x * y / x + 3);
+int hal = 2;
+exit(scopeagain);
