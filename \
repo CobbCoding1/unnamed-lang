@@ -50,43 +50,24 @@ Token *generate_operation_nodes(Token *current_token, Node *current_node){
   current_node = oper_node;
   printf("CURRENT TOKEN 1: %s\n", current_token->value);
   current_token--;
-  if(current_token->type == INT){
-    Node *expr_node = malloc(sizeof(Node));
-    expr_node = init_node(expr_node, current_token->value, INT);
-    current_node->left = expr_node;
-  } else if(current_token->type == IDENTIFIER){
-    Node *identifier_node = malloc(sizeof(Node));
-    identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
-    current_node->left = identifier_node;
-  } else {
-    printf("ERROR: expected int or identifier\n");
-    exit(1);
-  }
+  Node *expr_node = malloc(sizeof(Node));
+  expr_node = init_node(expr_node, current_token->value, INT);
+  current_node->left = expr_node;
   current_token++;
   current_token++;
-  while(current_token->type == INT || current_token->type == IDENTIFIER || current_token->type == OPERATOR){
-    if(current_token->type == INT || current_token->type == IDENTIFIER){
+  while(current_token->type == INT || current_token->type == OPERATOR){
+    if(current_token->type == INT){
       printf("CURRENT TOKEN 3: %s\n", current_token->value);
-      if((current_token->type != INT && current_token->type != IDENTIFIER) || current_token == NULL){
+      if(current_token->type != INT || current_token == NULL){
         printf("Syntax Error hERE\n");
         exit(1);
       }
-      printf("AJSDKLJASLK current token: %s\n", current_token->value);
       current_token++;
       if(current_token->type != OPERATOR){
         current_token--;
-        if(current_token->type == INT){
-          Node *second_expr_node = malloc(sizeof(Node));
-          second_expr_node = init_node(second_expr_node, current_token->value, INT);
-          current_node->right = second_expr_node;
-        } else if(current_token->type == IDENTIFIER){
-          Node *second_identifier_node = malloc(sizeof(Node));
-          second_identifier_node = init_node(second_identifier_node, current_token->value, IDENTIFIER);
-          current_node->right = second_identifier_node;
-        } else {
-          printf("ERROR: Expected Integer or Identifier\n");
-          exit(1);
-        }
+        Node *second_expr_node = malloc(sizeof(Node));
+        second_expr_node = init_node(second_expr_node, current_token->value, INT);
+        current_node->right = second_expr_node;
       }
     }
     if(current_token->type == OPERATOR){
@@ -95,18 +76,9 @@ Token *generate_operation_nodes(Token *current_token, Node *current_node){
       current_node->right = next_oper_node;
       current_node = next_oper_node;
       current_token--;
-      if(current_token->type == INT){
-        Node *second_expr_node = malloc(sizeof(Node));
-        second_expr_node = init_node(second_expr_node, current_token->value, INT);
-        current_node->left = second_expr_node;
-      } else if(current_token->type == IDENTIFIER){
-        Node *second_identifier_node = malloc(sizeof(Node));
-        second_identifier_node = init_node(second_identifier_node, current_token->value, IDENTIFIER);
-        current_node->left = second_identifier_node;
-      } else {
-        printf("ERROR: Expected IDENTIFIER or INT\n");
-        exit(1);
-      }
+      Node *second_expr_node = malloc(sizeof(Node));
+      second_expr_node = init_node(second_expr_node, current_token->value, INT);
+      current_node->left = second_expr_node;
       current_token++; 
     }
     current_token++;
@@ -242,8 +214,6 @@ Node *create_variables(Token *current_token, Node *current){
       current->right = oper_node;
       current = oper_node;
       int operation = 1;
-      current_token--;
-      current_token--;
       while(operation){
         current_token++;
         if(current_token->type == INT){
@@ -259,37 +229,24 @@ Node *create_variables(Token *current_token, Node *current){
           exit(1);
         }
         current_token++;
+        current_token++;
+        current_token++;
         if(current_token->type == OPERATOR){
-          current_token++;
-          current_token++;
-          if(current_token->type != OPERATOR){
-            current_token--;
-            if(current_token->type == INT){
-              printf("CURR TOKEN! %s\n", current_token->value);
-              Node *expr_node = malloc(sizeof(Node));
-              expr_node = init_node(expr_node, current_token->value, INT);
-              current->right = expr_node;
-              current_token++;
-            } else if(current_token->type == IDENTIFIER){
-              Node *identifier_node = malloc(sizeof(Node));
-              identifier_node = init_node(identifier_node, current_token->value, IDENTIFIER);
-              current->right = identifier_node;
-              current_token++;
-            } else {
-              printf("ERROR: UNRECOGNIZED TOKEN!\n");
-              exit(1);
-            }
-            operation = 0;
-          } else {
-            current_token--;
-            current_token--;
-            Node *oper_node = malloc(sizeof(Node));
-            oper_node = init_node(oper_node, current_token->value, OPERATOR);
-            current->right = oper_node;
-            current = oper_node;
-          }
+          current_token--;
+          current_token--;
+          Node *oper_node = malloc(sizeof(Node));
+          oper_node = init_node(oper_node, current_token->value, OPERATOR);
+          current->right = oper_node;
+          current = oper_node;
         } else {
+          current_token--;
+          current_token--;
+          current_token--;
+          Node *identifier_node = malloc(sizeof(Node));
+          identifier_node = init_node(identifier_node, current_token->value, INT);
+          current = identifier_node;
           operation = 0;
+          current_token++;
         }
       }
     } else {

@@ -1,5 +1,3 @@
-int myvar = 15;
-int y = 10;
-int x = 12;
-int z = 99;
-exit(z);
+int x = 10;
+int y = 3;
+exit(x * y / x + 3);
