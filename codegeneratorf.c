@@ -14,6 +14,7 @@
 
 size_t stack_size = 0;
 int current_stack_size_size = 0;
+int label_number = 0;
 size_t current_stack_size[MAX_STACK_SIZE_SIZE];
 const unsigned initial_size = 100;
 struct hashmap_s hashmap;
@@ -25,6 +26,11 @@ typedef enum{
   MUL,
   NOT_OPERATOR
 } OperatorType;
+
+void create_label(FILE *file){
+  fprintf(file, "label%d:\n", label_number);
+  label_number++;
+}
 
 void stack_push(size_t value){
   printf("current stack: %zu\n", current_stack_size[current_stack_size_size]);
@@ -114,7 +120,6 @@ int mov_if_var_or_not(char *reg, Node *node, FILE *file){
 
 Node *generate_operator_code(Node *node, FILE *file){
   mov_if_var_or_not("rax", node->left, file);
-  //mov("rax", node->left->value, file); 
   push("rax", file);
   Node *tmp = node;
   OperatorType oper_type = check_operator(tmp);
@@ -209,6 +214,31 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     node->left = NULL;
 
   }
+
+  if(strcmp(node->value, "IF") == 0){
+    Node *current = malloc(sizeof(Node));
+    current = node->left->left;
+  printf("MADE IT HERE IF\n");
+    if(current->left->type == INT || current->left->type == IDENTIFIER){
+      mov_if_var_or_not("rax", current->left, file);
+      push("rax", file);
+    } else {
+      generate_operator_code(current->left, file);
+    }
+  printf("MADE IT HERE IF\n");
+    if(current->right->type == INT || current->right->type == IDENTIFIER){
+      mov_if_var_or_not("rbx", current->right, file);
+      push("rbx", file);
+    } else {
+      generate_operator_code(current->right, file);
+    }
+    pop("rax", file);
+    pop("rbx", file);
+    fprintf(file, "  cmp rax, rbx\n");
+    fprintf(file, "  jne label%d\n", label_number);
+    node->left->left = NULL;
+  }
+
   if(strcmp(node->value, "(") == 0){
 
   }
@@ -277,6 +307,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
   }
 
   if(strcmp(node->value, "}") == 0){
+    create_label(file);
     void* log = malloc(sizeof(char));
     if(hashmap_iterate_pairs(&hashmap, log_and_free_out_of_scope, (void*)log) != 0){
       printf("ERROR: Could not free\n");

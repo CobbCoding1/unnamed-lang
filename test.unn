@@ -1,2 +1,7 @@
-int x = 9 + 3;
-exit(x);
+int x = 3;
+if(x * 9 + 1 == 3 * 9 + 1){
+  int y = 1;
+  exit(y);
+}
+
+exit(0);

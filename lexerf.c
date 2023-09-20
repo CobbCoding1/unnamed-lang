@@ -85,6 +85,9 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
   } else if(strcmp(keyword, "int") == 0){
     token->type = KEYWORD;
     token->value = "INT";
+  } else if(strcmp(keyword, "if") == 0){
+    token->type = KEYWORD;
+    token->value = "IF";
   } else {
     token->type = IDENTIFIER;
     token->value = keyword;
