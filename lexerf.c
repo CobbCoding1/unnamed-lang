@@ -116,7 +116,7 @@ Token *lexer(FILE *file){
 
   fclose(file);
 
-  current[length + 1] = '\0';
+  current[length] = '\0';
   int current_index = 0;
 
   int number_of_tokens = 12;

@@ -18,6 +18,14 @@ size_t current_stack_size[MAX_STACK_SIZE_SIZE];
 const unsigned initial_size = 100;
 struct hashmap_s hashmap;
 
+typedef enum{
+  ADD,
+  SUB,
+  DIV,
+  MUL,
+  NOT_OPERATOR
+} OperatorType;
+
 void stack_push(size_t value){
   printf("current stack: %zu\n", current_stack_size[current_stack_size_size]);
   current_stack_size[current_stack_size_size] = value;
@@ -146,135 +154,98 @@ Node *handle_div(Node *tmp, FILE *file){
   return tmp;
 }
 
-Node *generate_operator_code(Node *node, FILE *file){
-  Node *tmp = node;
-  if(tmp->left->type == INT){
-    mov("rax", tmp->left->value, file);
-  } else if(tmp->left->type == IDENTIFIER){
-    int *element = malloc(sizeof(int));
-    element = hashmap_get(&hashmap, tmp->left->value, strlen(tmp->left->value));
-    if(element == NULL){
-      printf("ERROR: Not in hashmap!\n");
+OperatorType check_operator(Node *node){
+  if(node->type != OPERATOR){
+    return NOT_OPERATOR;
+  }
+
+  if(strcmp(node->value, "+") == 0){
+    return ADD;
+  }
+  if(strcmp(node->value, "-") == 0){
+      return SUB;
+  }
+  if(strcmp(node->value, "/") == 0){
+    return DIV;
+  }
+  if(strcmp(node->value, "*") == 0){
+      return MUL;
+  }
+  return NOT_OPERATOR;
+}
+
+int mov_if_var_or_not(char *reg, Node *node, FILE *file){
+  if(node->type == IDENTIFIER){
+    int *value = malloc(sizeof(int));
+    value = hashmap_get(&hashmap, node->value, strlen(node->value));
+    if(value == NULL){
+      printf("ERROR: Variable %s not declared in current scope\n", node->value);
       exit(1);
     }
-    push_var(*element, file);
+    push_var(*value, file);
+    pop(reg, file);
+    return 0;
+  }
+  if(node->type == INT){
+    fprintf(file, "  mov %s, %s\n", reg, node->value);
+    return 0;
+  }
+  return -1;
+}
+
+Node *generate_operator_code(Node *node, FILE *file){
+  mov_if_var_or_not("rax", node->left, file);
+  //mov("rax", node->left->value, file); 
+  push("rax", file);
+  Node *tmp = node;
+  OperatorType oper_type = check_operator(tmp);
+  while(tmp->type == OPERATOR){
     pop("rax", file);
+    oper_type = check_operator(tmp);
+    tmp = tmp->right;
+    if(tmp->type != OPERATOR){
+      break;
+    }
+    mov_if_var_or_not("rbx", tmp->left, file);
+    switch(oper_type){
+      case ADD:
+        fprintf(file, "  add rax, rbx\n");
+        break;
+      case SUB:
+        fprintf(file, "  sub rax, rbx\n");
+        break;
+      case DIV:
+        fprintf(file, "  div rbx\n");
+        break;
+      case MUL:
+        fprintf(file, "  mul rbx\n");
+        break;
+      case NOT_OPERATOR:
+        printf("ERROR: Invalid Syntax\n");
+        exit(1);
+    }
+    push("rax", file);
+    oper_type = check_operator(tmp);
+  }
+  mov_if_var_or_not("rbx", tmp, file);
+  switch(oper_type){
+    case ADD:
+      fprintf(file, "  add rax, rbx\n");
+      break;
+    case SUB:
+      fprintf(file, "  sub rax, rbx\n");
+      break;
+    case DIV:
+      fprintf(file, "  div rbx\n");
+      break;
+    case MUL:
+      fprintf(file, "  mul rbx\n");
+      break;
+    case NOT_OPERATOR:
+      printf("ERROR: Invalid Syntaxx\n");
+      exit(1);
   }
   push("rax", file);
-  int did_loop = 0;
-  while(tmp->right->type == OPERATOR){
-    did_loop = 1;
-    char oper = tmp->value[0];
-    if(oper == '+'){
-      tmp = handle_adding(tmp, file);
-    } else if(oper == '-'){
-      tmp = handle_subbing(tmp, file);
-    } else if(oper == '*'){
-      tmp = handle_mul(tmp, file);
-    } else if(oper == '/'){
-      tmp = handle_div(tmp, file);
-    }
-  }
-  if(did_loop){
-    if(tmp->value[0] == '*' || tmp->value[0] == '/'){
-      pop("rax", file);
-      if(tmp->right->type == INT){
-        mov("rbx", tmp->right->value, file);
-      } else if(tmp->right->type == IDENTIFIER){
-        int *element = malloc(sizeof(int));
-        element = hashmap_get(&hashmap, tmp->right->value, strlen(tmp->right->value));
-        if(element == NULL){
-          printf("ERROR: Not in hashmap!\n");
-          exit(1);
-        }
-        push_var(*element, file);
-        pop("rbx", file);
-      }
-      fprintf(file, "  %s rbx\n", search(tmp->value[0])->data);
-      push("rax", file);
-    } else {
-      pop("rax", file);
-      if(tmp->right->type == INT){
-        mov("rbx", tmp->right->value, file);
-      } else if(tmp->right->type == IDENTIFIER){
-        int *element = malloc(sizeof(int));
-        element = hashmap_get(&hashmap, tmp->right->value, strlen(tmp->right->value));
-        if(element == NULL){
-          printf("ERROR: Not in hashmap!\n");
-          exit(1);
-        }
-        push_var(*element, file);
-        pop("rbx", file);
-      }
-      fprintf(file, "  %s rax, rbx\n", search(tmp->value[0])->data);
-      push("rax", file);
-    }
-  } else {
-    if(tmp->value[0] == '-'){
-      if(tmp->right->type == INT){
-        mov("rbx", tmp->right->value, file);
-      } else if(tmp->right->type == IDENTIFIER){
-        int *element = malloc(sizeof(int));
-        element = hashmap_get(&hashmap, tmp->right->value, strlen(tmp->right->value));
-        if(element == NULL){
-          printf("ERROR: Not in hashmap!\n");
-          exit(1);
-        }
-        push_var(*element, file);
-        pop("rbx", file);
-      }
-      pop("rax", file);
-      fprintf(file, "  %s rax, rbx\n", "sub");
-      push("rax", file);
-    } else if(tmp->value[0] == '+'){
-        if(tmp->right->type == INT){
-          mov("rbx", tmp->right->value, file);
-          //fprintf(file, "  add rax, rbx\n");
-          //push("rbx", file);
-        } else if(tmp->right->type == IDENTIFIER){
-          int *element = malloc(sizeof(int));
-          element = hashmap_get(&hashmap, tmp->right->value, strlen(tmp->right->value));
-          if(element == NULL){
-            printf("ERROR: Not in hashmap!\n");
-            exit(1);
-          }
-          push_var(*element, file);
-          pop("rbx", file);
-        }
-        fprintf(file, "  add rax, rbx\n");
-        push("rax", file);
-      } else if(tmp->value[0] == '*'){
-        if(tmp->right->type == INT){
-          mov("rbx", tmp->right->value, file);
-        } else if(tmp->right->type == IDENTIFIER){
-          int *element = malloc(sizeof(int));
-          element = hashmap_get(&hashmap, tmp->right->value, strlen(tmp->right->value));
-          if(element == NULL){
-            printf("ERROR: Not in hashmap!\n");
-            exit(1);
-          }
-          push_var(*element, file);
-          pop("rbx", file);
-        }
-        fprintf(file, "  mul rbx\n");
-        push("rax", file);
-      } else if(tmp->value[0] == '/'){
-          if(tmp->right->type == INT){
-            mov("rbx", tmp->right->value, file);
-          } else if(tmp->right->type == IDENTIFIER){
-            int *element = malloc(sizeof(int));
-            element = hashmap_get(&hashmap, tmp->right->value, strlen(tmp->right->value));
-            if(element == NULL){
-              printf("ERROR: Not in hashmap!\n");
-              exit(1);
-            }
-            push_var(*element, file);
-            pop("rbx", file);
-          }
-        fprintf(file, "  div rbx\n");
-        push("rax", file);
-    }
-  }
   node->left = NULL;
   node->right = NULL;
   return node;
