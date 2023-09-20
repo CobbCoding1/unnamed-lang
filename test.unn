@@ -1,5 +1,2 @@
-{
-  int x = 11;
-}
-int x = 10 * 3;
-exit(x - 10);
+int x = 9 + 3;
+exit(x);
