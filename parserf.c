@@ -187,6 +187,7 @@ Node *create_variable_reusage(Token *current_token, Node *current){
   current = main_identifier_node;
   current_token++;
 
+  printf("TOKEN IS %s\n", current_token->value);
   handle_token_errors("Invalid syntax after idenfitier", current_token, OPERATOR);
 
   if(current_token->type == OPERATOR){
@@ -555,7 +556,8 @@ Node *parser(Token *tokens){
         break;
       case IDENTIFIER:
         current_token--;
-        if(current_token->type == SEPARATOR && strcmp(current_token->value, ";") == 0){
+        if(current_token->type == SEPARATOR && (strcmp(current_token->value, ";") == 0)){
+          printf("VARIABLE REUSAGE CTOKEN: %s\n", (current_token - 1)->value);
           current_token++;
           current = create_variable_reusage(current_token, current);
         } else {
