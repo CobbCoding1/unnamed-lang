@@ -10,6 +10,7 @@ typedef enum {
   SEPARATOR,
   OPERATOR,
   IDENTIFIER,
+  COMP,
   END_OF_TOKENS,
 } TokenType;
 
@@ -41,6 +42,9 @@ void print_token(Token token){
       break;
     case IDENTIFIER:
       printf(" TOKEN TYPE: IDENTIFIER\n");
+      break;
+    case COMP:
+      printf(" TOKEN TYPE: COMPARATOR\n");
       break;
     case END_OF_TOKENS:
       printf(" END OF TOKENS\n");
@@ -88,6 +92,15 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
   } else if(strcmp(keyword, "if") == 0){
     token->type = KEYWORD;
     token->value = "IF";
+  } else if(strcmp(keyword, "while") == 0){
+    token->type = KEYWORD;
+    token->value = "WHILE";
+  } else if(strcmp(keyword, "eq") == 0){
+    token->type = COMP;
+    token->value = "EQ";
+  } else if(strcmp(keyword, "neq") == 0){
+    token->type = COMP;
+    token->value = "NEQ";
   } else {
     token->type = IDENTIFIER;
     token->value = keyword;

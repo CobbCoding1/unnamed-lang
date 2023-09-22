@@ -656,7 +656,7 @@ Token *generate_if_operation_nodes_right(Token *current_token, Node *current_nod
 
 Node *create_if_statement(Token *current_token, Node *current){
   Node *if_node = malloc(sizeof(Node));
-  if_node = init_node(if_node, current_token->value, KEYWORD);
+  if_node = init_node(if_node, current_token->value, current_token->type);
   current->left = if_node;
   current = if_node;
   current_token++;
@@ -676,18 +676,17 @@ Node *create_if_statement(Token *current_token, Node *current){
   }
   
 
-  while(current_token->type != END_OF_TOKENS && strcmp(current_token->value, "=") != 0){
+  while(current_token->type != END_OF_TOKENS && current_token->type != COMP){
     current_token++;
   }
 
-  if(current_token->type != OPERATOR && strcmp(current_token->value, "=") != 0){
+  if(current_token->type != COMP){
     printf("ERROR: Expected =\n");
+    exit(1);
   }
-  char *equals_oper_value = malloc(sizeof(char) * 3);
-  sprintf(equals_oper_value, "%s%s", current_token->value, (current_token + 1)->value);
-  Node *equals_oper_node = malloc(sizeof(Node));
-  equals_oper_node = init_node(equals_oper_node, equals_oper_value, OPERATOR);
-  open_paren_node->left = equals_oper_node;
+  Node *comp_node = malloc(sizeof(Node));
+  comp_node = init_node(comp_node, current_token->value, current_token->type);
+  open_paren_node->left = comp_node;
 
   while(current_token->type != SEPARATOR){
     current_token--;
@@ -696,11 +695,11 @@ Node *create_if_statement(Token *current_token, Node *current){
   current_token++;
   current_token++;
 
-  if(current_token->type != OPERATOR || strcmp(current_token->value, "=") == 0){
+  if(current_token->type != OPERATOR || current_token->type == COMP){
     current_token--;
     Node *expr_node = malloc(sizeof(Node));
     expr_node = init_node(expr_node, current_token->value, current_token->type);
-    equals_oper_node->left = expr_node;
+    comp_node->left = expr_node;
   } else {
     current_token = generate_if_operation_nodes(current_token, current);
   }
@@ -714,7 +713,7 @@ Node *create_if_statement(Token *current_token, Node *current){
     current_token--;
     Node *expr_node = malloc(sizeof(Node));
     expr_node = init_node(expr_node, current_token->value, current_token->type);
-    equals_oper_node->right = expr_node;
+    comp_node->right = expr_node;
   } else {
     current_token = generate_if_operation_nodes_right(current_token, current);
   }
@@ -758,6 +757,9 @@ Node *parser(Token *tokens){
         if(strcmp(current_token->value, "IF") == 0){
           current = create_if_statement(current_token, current);
         }
+        if(strcmp(current_token->value, "WHILE") == 0){
+          current = create_if_statement(current_token, current);
+        }
         break;
       case SEPARATOR:
         if(strcmp(current_token->value, "{") == 0){
@@ -787,13 +789,15 @@ Node *parser(Token *tokens){
         break;
       case IDENTIFIER:
         current_token--;
-        if(current_token->type == SEPARATOR && ((strcmp(current_token->value, ";") == 0) || (strcmp(current_token->value, "}") == 0))){
+        if(current_token->type == SEPARATOR && ((strcmp(current_token->value, ";") == 0) || (strcmp(current_token->value, "}") == 0) || (strcmp(current_token->value, "{") == 0))){
           printf("VARIABLE REUSAGE CTOKEN: %s\n", (current_token - 1)->value);
           current_token++;
           current = create_variable_reusage(current_token, current);
         } else {
           current_token++;
         }
+        break;
+      case COMP:
         break;
       case BEGINNING:
         break;

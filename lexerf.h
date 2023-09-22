@@ -8,6 +8,7 @@ typedef enum {
   SEPARATOR,
   OPERATOR,
   IDENTIFIER,
+  COMP,
   END_OF_TOKENS,
 } TokenType;
 

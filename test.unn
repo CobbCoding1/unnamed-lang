@@ -1,11 +1,5 @@
-int x = 12;
-if(x == 12){
-  int y = 22;
-  if(12 == 12){
-    exit(y);
-  }
-  exit(y);
+int x = 15;
+while(x eq 5){
+  x = 5;
 }
-
-x = 2;
 exit(x);

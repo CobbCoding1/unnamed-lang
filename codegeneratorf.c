@@ -17,6 +17,7 @@ size_t curly_stack_size = 0;
 size_t stack_size = 0;
 int current_stack_size_size = 0;
 int label_number = 0;
+int loop_label_number = 0;
 //int if_label_number = 0;
 size_t current_stack_size[MAX_STACK_SIZE_SIZE];
 const unsigned initial_size = 100;
@@ -35,8 +36,25 @@ void create_label(FILE *file){
   fprintf(file, "label%d:\n", label_number);
 }
 
-void if_label(FILE *file){
-  fprintf(file, "  jne label%d\n", label_number);
+void create_end_loop(FILE *file){
+  loop_label_number--;
+  fprintf(file, " jne loop%d\n", loop_label_number);
+}
+
+void create_loop_label(FILE *file){
+  fprintf(file, "loop%d:\n", loop_label_number);
+  loop_label_number++;
+}
+
+void if_label(FILE *file, char *comp){
+  if(strcmp(comp, "EQ") == 0){
+    fprintf(file, "  jne label%d\n", label_number);
+  } else if(strcmp(comp, "NEQ") == 0){
+    fprintf(file, "  je label%d\n", label_number);
+  } else {
+    printf("ERROR: Unexpected comparator\n");
+    exit(1);
+  }
   label_number++;
 }
 
@@ -54,7 +72,6 @@ size_t stack_pop(){
     exit(1);
   }
   size_t result = current_stack_size[current_stack_size_size];
-  //current_stack_size_size--;
   return result;
 }
 
@@ -82,7 +99,7 @@ char curly_stack_peek(){
 static int log_and_free_out_of_scope(void* const context, struct hashmap_element_s* const e){
   (void)(context);
   printf("CURRENT STACK SIZE: %zu, e->data%zu\n", current_stack_size[current_stack_size_size], *(size_t*)e->data);
-  if(*(size_t*)e->data > current_stack_size[current_stack_size_size]){
+  if(*(size_t*)e->data > (current_stack_size[current_stack_size_size] + 1)){
     printf("REMOVED A VAR\n\n\n\n\n");
     if(hashmap_remove(&hashmap, e->key, strlen(e->key)) != 0){
       printf("COULD NOT REMOVE ELEMENT\n");
@@ -270,9 +287,35 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     pop("rax", file);
     pop("rbx", file);
     fprintf(file, "  cmp rax, rbx\n");
-    if_label(file);
-    //fprintf(file, "  jne label%d\n", if_label_number);
-    //label_number++;
+    printf("IF LABEL VALUE: %s\n", current->value);
+    if_label(file, current->value);
+    node->left->left = NULL;
+  }
+  if(strcmp(node->value, "WHILE") == 0){
+    curly_stack_push('W');
+    Node *current = malloc(sizeof(Node));
+    current = node->left->left;
+    if(current->left->type == INT || current->left->type == IDENTIFIER){
+      mov_if_var_or_not("rax", current->left, file);
+      push("rax", file);
+    } else {
+      generate_operator_code(current->left, file);
+    }
+    if(current->right->type == INT || current->right->type == IDENTIFIER){
+      mov_if_var_or_not("rbx", current->right, file);
+      push("rbx", file);
+    } else {
+      generate_operator_code(current->right, file);
+    }
+    pop("rax", file);
+    pop("rbx", file);
+    fprintf(file, "  cmp rax, rbx\n");
+    if(strcmp(current->value, "EQ") == 0){
+      if_label(file, "NEQ");
+    } else if(strcmp(current->value, "NEQ") == 0){
+      if_label(file, "EQ");
+    }
+    create_loop_label(file);
     node->left->left = NULL;
   }
 
@@ -307,6 +350,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
        syscall_number = 0;
     } else {
       printf("VARIABLE IS HEREHERE\n");
+       printf("NODE VALUE: %s, %zu, %d\n", node->value, current_stack_size[current_stack_size_size], current_stack_size_size);
       if(hashmap_get(&hashmap, node->value, strlen(node->value)) == NULL){
         printf("ERROR: Variable %s is not declared in current scope\n", node->value);
         exit(1);
@@ -333,6 +377,10 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
       }
       size_t *cur_size = malloc(sizeof(size_t));
       *cur_size = stack_size;
+      if(hashmap_remove(&hashmap, node->value, strlen(node->value)) != 0){
+        printf("ERROR: Could not remove\n");
+        exit(1);
+      }
       if(hashmap_put(&hashmap, node->value, strlen(node->value), cur_size) != 0){
         printf("ERROR: Could not insert into hash table!\n");
         exit(1);
@@ -355,11 +403,15 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     printf("CURRENT CURLY: %c, %c\n", current_curly, next_curly);
     if(next_curly == 'I' || current_curly == 'I'){
       create_label(file);
+    } else if(next_curly == 'W' || next_curly == 'W'){
+      fprintf(file, "  cmp rax, rbx\n");
+      create_end_loop(file);
+      create_label(file);
     }
 
     size_t stack_value = stack_pop();
     printf("STACK VALUE: %zu, %zu\n", stack_value, stack_size);
-    for(; stack_size > stack_value;){
+    for(; stack_size != stack_value;){
       pop("rsi", file);
     }
     printf("STACK SIZE: %zu\n", stack_value);
