@@ -5,12 +5,34 @@
 
 #include "lexerf.h"
 
+#define MAX_CURLY_STACK_LENGTH 64
+
 typedef struct Node {
   char *value;
   TokenType type;
   struct Node *right;
   struct Node *left;
 } Node;
+
+typedef struct {
+  Node *content[MAX_CURLY_STACK_LENGTH];
+  int top;
+} curly_stack;
+
+Node *peek_curly(curly_stack *stack){
+  return stack->content[stack->top];
+}
+
+void push_curly(curly_stack *stack, Node *element){
+  stack->top++;
+  stack->content[stack->top] = element;
+}
+
+Node *pop_curly(curly_stack *stack){
+  Node *result = stack->content[stack->top];
+  stack->top--;
+  return result;
+}
 
 void print_tree(Node *node, int indent, char *identifier){
   if(node == NULL){
@@ -42,6 +64,17 @@ void print_error(char *error_type){
   printf("ERROR: %s\n", error_type);
   exit(1);
 }
+
+Node *parse_expression(Token *current_token, Node *current_node){
+  Node *expr_node = malloc(sizeof(Node));
+  expr_node = init_node(expr_node, current_token->value, current_token->type);
+  current_token++;
+  if(current_token->type != OPERATOR){
+    return expr_node;
+  }
+  return expr_node;
+}
+
 
 Token *generate_operation_nodes(Token *current_token, Node *current_node){
   Node *oper_node = malloc(sizeof(Node));
@@ -114,9 +147,10 @@ Token *generate_operation_nodes(Token *current_token, Node *current_node){
   return current_token;
 }
 
-void handle_exit_syscall(Node *root, Token *current_token, Node *current){
+Node *handle_exit_syscall(Node *root, Token *current_token, Node *current){
     Node *exit_node = malloc(sizeof(Node));
     exit_node = init_node(exit_node, current_token->value, KEYWORD);
+    printf("CURRENT NODE IN EXIT: %s\n", current->value);
     current->right = exit_node;
     current = exit_node;
     current_token++;
@@ -159,6 +193,7 @@ void handle_exit_syscall(Node *root, Token *current_token, Node *current){
             Node *semi_node = malloc(sizeof(Node));
             semi_node = init_node(semi_node, current_token->value, SEPARATOR);
             current->right = semi_node;
+            current = semi_node;
           } else {
             print_error("Invalid Syntax on SEMI");
           }
@@ -171,7 +206,7 @@ void handle_exit_syscall(Node *root, Token *current_token, Node *current){
   } else {
     print_error("Invalid Syntax OPEN");
   }
-
+  return current;
 }
 
 void handle_token_errors(char *error_text, Token *current_token, TokenType type){
@@ -639,6 +674,7 @@ Node *create_if_statement(Token *current_token, Node *current){
     printf("ERROR: Expected Identifier or INT\n");
     exit(1);
   }
+  
 
   while(current_token->type != END_OF_TOKENS && strcmp(current_token->value, "=") != 0){
     current_token++;
@@ -701,7 +737,9 @@ Node *parser(Token *tokens){
   Node *current = root;
 
   Node *open_curly = malloc(sizeof(Node));
-  Node *close_curly = malloc(sizeof(Node));
+  //Node *close_curly = malloc(sizeof(Node));
+
+  curly_stack *stack = malloc(sizeof(curly_stack));
 
   while(current_token->type != END_OF_TOKENS){
     if(current == NULL){
@@ -711,7 +749,8 @@ Node *parser(Token *tokens){
       case KEYWORD:
         printf("TOKEN VALUE: %s\n", current_token->value);
         if(strcmp(current_token->value, "EXIT") == 0){
-          handle_exit_syscall(root, current_token, current);
+          current = handle_exit_syscall(root, current_token, current);
+          printf("CURRENT TOKEN HERE IS : %s\n", current_token->value);
         }
         if(strcmp(current_token->value, "INT") == 0){
           current = create_variables(current_token, current);
@@ -726,35 +765,18 @@ Node *parser(Token *tokens){
           open_curly = init_node(open_curly, temp->value, SEPARATOR);
           current->left = open_curly;
           current = open_curly;
-          int curly_count = 0;
-          int close_curly_count = 0;
-          close_curly = init_node(close_curly, "}", SEPARATOR);
-          current->right = close_curly;
-          temp = &tokens[0];
-          //temp++;
-          while(temp->type != END_OF_TOKENS){
-            if(temp == NULL){
-              printf("ERROR: Expected }\n");
-              exit(1);
-            }
-            if(temp->type == SEPARATOR){
-              if(strcmp(temp->value, "{") == 0){
-                curly_count++;
-              }
-              if(strcmp(temp->value, "}") == 0){
-                close_curly_count++;
-              }
-            }
-            temp++;
-          }
-          if(curly_count != close_curly_count){
-            printf("%d:%d\n", curly_count, close_curly_count);
-            printf("ERROR: Expected curly brace\n");
-            exit(1);
-          }
-          //
+          push_curly(stack, open_curly);
+          current = peek_curly(stack);
         }
         if(strcmp(current_token->value, "}") == 0){
+          Node *close_curly = malloc(sizeof(Node));
+          open_curly = pop_curly(stack);
+          if(open_curly == NULL){
+            printf("ERROR: Expected Open Parenthesis!\n");
+            exit(1);
+          }
+          close_curly = init_node(close_curly, current_token->value, current_token->type);
+          current->right = close_curly;
           current = close_curly;
         }
         break; 
@@ -765,7 +787,7 @@ Node *parser(Token *tokens){
         break;
       case IDENTIFIER:
         current_token--;
-        if(current_token->type == SEPARATOR && (strcmp(current_token->value, ";") == 0)){
+        if(current_token->type == SEPARATOR && ((strcmp(current_token->value, ";") == 0) || (strcmp(current_token->value, "}") == 0))){
           printf("VARIABLE REUSAGE CTOKEN: %s\n", (current_token - 1)->value);
           current_token++;
           current = create_variable_reusage(current_token, current);

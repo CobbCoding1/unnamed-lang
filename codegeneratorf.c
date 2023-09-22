@@ -12,9 +12,12 @@
 
 #define MAX_STACK_SIZE_SIZE 1024
 
+char curly_stack[MAX_STACK_SIZE_SIZE];
+size_t curly_stack_size = 0;
 size_t stack_size = 0;
 int current_stack_size_size = 0;
 int label_number = 0;
+//int if_label_number = 0;
 size_t current_stack_size[MAX_STACK_SIZE_SIZE];
 const unsigned initial_size = 100;
 struct hashmap_s hashmap;
@@ -28,14 +31,19 @@ typedef enum{
 } OperatorType;
 
 void create_label(FILE *file){
+  label_number--;
   fprintf(file, "label%d:\n", label_number);
+}
+
+void if_label(FILE *file){
+  fprintf(file, "  jne label%d\n", label_number);
   label_number++;
 }
 
 void stack_push(size_t value){
   printf("current stack: %zu\n", current_stack_size[current_stack_size_size]);
-  current_stack_size[current_stack_size_size] = value;
   current_stack_size_size++;
+  current_stack_size[current_stack_size_size] = value;
   printf("current stack: %zu\n", current_stack_size[current_stack_size_size]);
 }
 
@@ -46,18 +54,41 @@ size_t stack_pop(){
     exit(1);
   }
   size_t result = current_stack_size[current_stack_size_size];
-  current_stack_size_size--;
+  //current_stack_size_size--;
   return result;
+}
+
+void curly_stack_push(char value){
+  curly_stack_size++;
+  curly_stack[curly_stack_size] = value;
+}
+
+char curly_stack_pop(){
+  if(curly_stack_size == 0){
+    return '\0';
+  } 
+  char result = curly_stack[curly_stack_size];
+  curly_stack_size--;
+  return result;
+}
+
+char curly_stack_peek(){
+  if(curly_stack_size == 0){
+    return '\0';
+  }
+  return curly_stack[curly_stack_size];
 }
 
 static int log_and_free_out_of_scope(void* const context, struct hashmap_element_s* const e){
   (void)(context);
+  printf("CURRENT STACK SIZE: %zu, e->data%zu\n", current_stack_size[current_stack_size_size], *(size_t*)e->data);
   if(*(size_t*)e->data > current_stack_size[current_stack_size_size]){
+    printf("REMOVED A VAR\n\n\n\n\n");
     if(hashmap_remove(&hashmap, e->key, strlen(e->key)) != 0){
       printf("COULD NOT REMOVE ELEMENT\n");
     } 
   }
-  return -1;
+  return 0;
 }
 
 void push(char *reg, FILE *file){
@@ -71,8 +102,9 @@ void push_var(size_t stack_pos, FILE *file){
 }
 
 void pop(char *reg, FILE *file){
-  fprintf(file, "  pop %s\n", reg);
   stack_size--;
+  fprintf(file, "  pop %s\n", reg);
+  printf("STACK SIZE: %zu\n", stack_size);
 }
 
 void mov(char *reg1, char *reg2, FILE *file){
@@ -184,10 +216,12 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
   }
   if(strcmp(node->value, "INT") == 0){
     // Push
-    Node *value = node->left->left->left;
+    Node *value = malloc(sizeof(Node));
+    value = node->left->left->left;
     if(value->type == IDENTIFIER){
       size_t *var_value = malloc(sizeof(size_t));
       var_value = hashmap_get(&hashmap, value->value, strlen(value->value));
+      printf("VAR VALUE: %zu, value: %s\n", *var_value, value->value);
       if(var_value == NULL){
         printf("ERROR: %s Not Declared In Current Context\n", value->value);
         exit(1);
@@ -216,6 +250,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
   }
 
   if(strcmp(node->value, "IF") == 0){
+    curly_stack_push('I');
     Node *current = malloc(sizeof(Node));
     current = node->left->left;
   printf("MADE IT HERE IF\n");
@@ -235,7 +270,9 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     pop("rax", file);
     pop("rbx", file);
     fprintf(file, "  cmp rax, rbx\n");
-    fprintf(file, "  jne label%d\n", label_number);
+    if_label(file);
+    //fprintf(file, "  jne label%d\n", if_label_number);
+    //label_number++;
     node->left->left = NULL;
   }
 
@@ -258,13 +295,16 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
        fprintf(file, "  mov rax, %d\n", syscall_number);
        size_t *var_value = malloc(sizeof(size_t));
        var_value = hashmap_get(&hashmap, node->value, strlen(node->value));
+       printf("NODE VALUE: %s, %zu, %d\n", node->value, current_stack_size[current_stack_size_size], current_stack_size_size);
        if(var_value == NULL){
          printf("ERROR: Not Declared in current scope: %s\n", node->value);
          exit(1);
+       } else {
        }
        push_var(*var_value, file);
        pop("rdi", file);
        fprintf(file, "  syscall\n");
+       syscall_number = 0;
     } else {
       printf("VARIABLE IS HEREHERE\n");
       if(hashmap_get(&hashmap, node->value, strlen(node->value)) == NULL){
@@ -273,9 +313,11 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
       }
 
       Node *value = node->left->left;
+        printf("VAR VALUE: %s\n", value->value);
       if(value->type == IDENTIFIER){
         size_t *var_value = malloc(sizeof(size_t));
         var_value = hashmap_get(&hashmap, value->value, strlen(value->value));
+        printf("IDENTIFIER VALUE :%zu\n", *var_value);
         if(var_value == NULL){
           printf("ERROR: %s Not Declared In Current Context\n", value->value);
           exit(1);
@@ -304,19 +346,30 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
 
   if(strcmp(node->value, "{") == 0){
     stack_push(stack_size);
+    curly_stack_push('{');
   }
 
   if(strcmp(node->value, "}") == 0){
-    create_label(file);
+    char current_curly = curly_stack_pop();
+    char next_curly = curly_stack_peek();
+    printf("CURRENT CURLY: %c, %c\n", current_curly, next_curly);
+    if(next_curly == 'I' || current_curly == 'I'){
+      create_label(file);
+    }
+
+    size_t stack_value = stack_pop();
+    printf("STACK VALUE: %zu, %zu\n", stack_value, stack_size);
+    for(; stack_size > stack_value;){
+      pop("rsi", file);
+    }
+    printf("STACK SIZE: %zu\n", stack_value);
+
     void* log = malloc(sizeof(char));
     if(hashmap_iterate_pairs(&hashmap, log_and_free_out_of_scope, (void*)log) != 0){
       printf("ERROR: Could not free\n");
       exit(1);
     }
-    size_t stack_value = stack_pop();
-    for(; stack_size > stack_value;){
-      pop("rsi", file);
-    }
+
   }
 
   if(strcmp(node->value, ";") == 0){
@@ -324,6 +377,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
       fprintf(file, "  mov rax, %d\n", syscall_number);
       fprintf(file, "  pop rdi\n");
       fprintf(file, "  syscall\n");
+      syscall_number = 0;
     }
   }
   if(is_left){
