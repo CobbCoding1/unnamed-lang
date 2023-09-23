@@ -1,5 +1,0 @@
-int x = 15;
-while(x eq 5){
-  x = 5;
-}
-exit(x);

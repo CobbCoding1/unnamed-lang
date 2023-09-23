@@ -101,6 +101,12 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
   } else if(strcmp(keyword, "neq") == 0){
     token->type = COMP;
     token->value = "NEQ";
+  } else if(strcmp(keyword, "less") == 0){
+    token->type = COMP;
+    token->value = "LESS";
+  } else if(strcmp(keyword, "greater") == 0){
+    token->type = COMP;
+    token->value = "GREATER";
   } else {
     token->type = IDENTIFIER;
     token->value = keyword;
@@ -185,6 +191,10 @@ Token *lexer(FILE *file){
       tokens[tokens_index] = *token;
       tokens_index++;
     } else if(current[current_index] == '/'){
+      token = generate_separator_or_operator(current, &current_index, OPERATOR);
+      tokens[tokens_index] = *token;
+      tokens_index++;
+    } else if(current[current_index] == '%'){
       token = generate_separator_or_operator(current, &current_index, OPERATOR);
       tokens[tokens_index] = *token;
       tokens_index++;

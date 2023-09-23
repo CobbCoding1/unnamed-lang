@@ -12,8 +12,10 @@
 
 #define MAX_STACK_SIZE_SIZE 1024
 
-char curly_stack[MAX_STACK_SIZE_SIZE];
+char *curly_stack[MAX_STACK_SIZE_SIZE];
 size_t curly_stack_size = 0;
+int curly_count = 0;
+int global_curly = 0;
 size_t stack_size = 0;
 int current_stack_size_size = 0;
 int label_number = 0;
@@ -28,17 +30,19 @@ typedef enum{
   SUB,
   DIV,
   MUL,
+  MOD,
   NOT_OPERATOR
 } OperatorType;
 
-void create_label(FILE *file){
+
+void create_label(FILE *file, int num){
   label_number--;
-  fprintf(file, "label%d:\n", label_number);
+  fprintf(file, "label%d:\n", num);
 }
 
 void create_end_loop(FILE *file){
   loop_label_number--;
-  fprintf(file, " jne loop%d\n", loop_label_number);
+  fprintf(file, " jmp loop%d\n", loop_label_number);
 }
 
 void create_loop_label(FILE *file){
@@ -46,11 +50,15 @@ void create_loop_label(FILE *file){
   loop_label_number++;
 }
 
-void if_label(FILE *file, char *comp){
+void if_label(FILE *file, char *comp, int num){
   if(strcmp(comp, "EQ") == 0){
-    fprintf(file, "  jne label%d\n", label_number);
+    fprintf(file, "  jne label%d\n", num);
   } else if(strcmp(comp, "NEQ") == 0){
-    fprintf(file, "  je label%d\n", label_number);
+    fprintf(file, "  je label%d\n", num);
+  } else if(strcmp(comp, "LESS") == 0){
+    fprintf(file, "  jge label%d\n", num);
+  } else if(strcmp(comp, "GREATER") == 0){
+    fprintf(file, "  jle label%d\n", label_number);
   } else {
     printf("ERROR: Unexpected comparator\n");
     exit(1);
@@ -75,23 +83,23 @@ size_t stack_pop(){
   return result;
 }
 
-void curly_stack_push(char value){
+void curly_stack_push(char *value){
   curly_stack_size++;
   curly_stack[curly_stack_size] = value;
 }
 
-char curly_stack_pop(){
+char *curly_stack_pop(){
   if(curly_stack_size == 0){
-    return '\0';
+    return NULL;
   } 
-  char result = curly_stack[curly_stack_size];
+  char *result = curly_stack[curly_stack_size];
   curly_stack_size--;
   return result;
 }
 
-char curly_stack_peek(){
+char *curly_stack_peek(){
   if(curly_stack_size == 0){
-    return '\0';
+    return NULL;
   }
   return curly_stack[curly_stack_size];
 }
@@ -114,8 +122,15 @@ void push(char *reg, FILE *file){
 }
 
 void push_var(size_t stack_pos, FILE *file){
+  printf("Stack Size: %zu, Stack POS: %zu\n", stack_size, stack_pos);
   fprintf(file, "  push QWORD [rsp + %zu]\n", (stack_size - stack_pos) * 8);
   stack_size++;
+}
+
+void modify_var(size_t stack_pos, char *new_value, FILE *file){
+  printf("Stack Size: %zu, Stack POS: %zu\n", stack_size, stack_pos);
+  fprintf(file, "  mov QWORD [rsp + %zu], %s\n", (stack_size - (stack_pos)) * 8, new_value);
+  //fprintf(file, "  push QWORD [rsp + %zu]\n", (stack_size - stack_pos) * 8);
 }
 
 void pop(char *reg, FILE *file){
@@ -144,6 +159,9 @@ OperatorType check_operator(Node *node){
   }
   if(strcmp(node->value, "*") == 0){
       return MUL;
+  }
+  if(strcmp(node->value, "%") == 0){
+    return MOD;
   }
   return NOT_OPERATOR;
 }
@@ -193,11 +211,19 @@ Node *generate_operator_code(Node *node, FILE *file){
       case MUL:
         fprintf(file, "  mul rbx\n");
         break;
+      case MOD:
+        fprintf(file, "  div rbx\n");
+        break;
       case NOT_OPERATOR:
         printf("ERROR: Invalid Syntax\n");
         exit(1);
+        break;
     }
-    push("rax", file);
+    if(oper_type != MOD){
+      push("rax", file);
+    } else {
+      push("rdx", file);
+    }
     oper_type = check_operator(tmp);
   }
   mov_if_var_or_not("rbx", tmp, file);
@@ -214,11 +240,19 @@ Node *generate_operator_code(Node *node, FILE *file){
     case MUL:
       fprintf(file, "  mul rbx\n");
       break;
+    case MOD:
+      fprintf(file, "  div rbx\n");
+      break;
     case NOT_OPERATOR:
       printf("ERROR: Invalid Syntaxx\n");
       exit(1);
+      break;
   }
-  push("rax", file);
+  if(oper_type != MOD){
+    push("rax", file);
+  } else {
+    push("rdx", file);
+  }
   node->left = NULL;
   node->right = NULL;
   return node;
@@ -267,7 +301,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
   }
 
   if(strcmp(node->value, "IF") == 0){
-    curly_stack_push('I');
+    curly_stack_push("IF");
     Node *current = malloc(sizeof(Node));
     current = node->left->left;
   printf("MADE IT HERE IF\n");
@@ -288,11 +322,12 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     pop("rbx", file);
     fprintf(file, "  cmp rax, rbx\n");
     printf("IF LABEL VALUE: %s\n", current->value);
-    if_label(file, current->value);
+    if_label(file, current->value, curly_count);
     node->left->left = NULL;
   }
   if(strcmp(node->value, "WHILE") == 0){
-    curly_stack_push('W');
+    curly_stack_push("W");
+    create_loop_label(file);
     Node *current = malloc(sizeof(Node));
     current = node->left->left;
     if(current->left->type == INT || current->left->type == IDENTIFIER){
@@ -307,15 +342,21 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     } else {
       generate_operator_code(current->right, file);
     }
-    pop("rax", file);
     pop("rbx", file);
+    pop("rax", file);
     fprintf(file, "  cmp rax, rbx\n");
     if(strcmp(current->value, "EQ") == 0){
-      if_label(file, "NEQ");
+      if_label(file, "EQ", curly_count);
     } else if(strcmp(current->value, "NEQ") == 0){
-      if_label(file, "EQ");
+      if_label(file, "NEQ", curly_count);
+    } else if(strcmp(current->value, "LESS") == 0){
+      if_label(file, "LESS", curly_count);
+    } else if(strcmp(current->value, "GREATER") == 0){
+      if_label(file, "GREATER", curly_count);
+    } else {
+      printf("ERROR: Unknown Operator\n");
+      exit(1);
     }
-    create_loop_label(file);
     node->left->left = NULL;
   }
 
@@ -350,7 +391,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
        syscall_number = 0;
     } else {
       printf("VARIABLE IS HEREHERE\n");
-       printf("NODE VALUE: %s, %zu, %d\n", node->value, current_stack_size[current_stack_size_size], current_stack_size_size);
+       printf("NODE VaLUE: %s, %zu, %d\n", node->value, current_stack_size[current_stack_size_size], current_stack_size_size);
       if(hashmap_get(&hashmap, node->value, strlen(node->value)) == NULL){
         printf("ERROR: Variable %s is not declared in current scope\n", node->value);
         exit(1);
@@ -358,15 +399,15 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
 
       Node *value = node->left->left;
         printf("VAR VALUE: %s\n", value->value);
+      size_t *var_value = malloc(sizeof(size_t));
       if(value->type == IDENTIFIER){
-        size_t *var_value = malloc(sizeof(size_t));
         var_value = hashmap_get(&hashmap, value->value, strlen(value->value));
         printf("IDENTIFIER VALUE :%zu\n", *var_value);
         if(var_value == NULL){
           printf("ERROR: %s Not Declared In Current Context\n", value->value);
           exit(1);
         }
-        push_var(*var_value, file);
+        //push_var(*var_value, file);
       } else if(value->type == INT) {
         push(value->value, file);
       } else if(value->type == OPERATOR){
@@ -377,14 +418,19 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
       }
       size_t *cur_size = malloc(sizeof(size_t));
       *cur_size = stack_size;
-      if(hashmap_remove(&hashmap, node->value, strlen(node->value)) != 0){
+
+      pop("rax", file);
+      modify_var(*var_value, "rax", file);
+      /*if(hashmap_remove(&hashmap, node->value, strlen(node->value)) != 0){
         printf("ERROR: Could not remove\n");
+        ok
         exit(1);
       }
       if(hashmap_put(&hashmap, node->value, strlen(node->value), cur_size) != 0){
         printf("ERROR: Could not insert into hash table!\n");
         exit(1);
       }
+      */
       node->left = NULL;
     } 
   }
@@ -394,20 +440,28 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
 
   if(strcmp(node->value, "{") == 0){
     stack_push(stack_size);
-    curly_stack_push('{');
+    curly_count++;
+    printf("CURLY COUNT IS %d\n\n\n\n", curly_count);
+    char *curly_count_string = malloc(sizeof(char) * 4);
+    sprintf(curly_count_string, "%d", curly_count);
+    curly_stack_push(curly_count_string);
   }
 
   if(strcmp(node->value, "}") == 0){
-    char current_curly = curly_stack_pop();
-    char next_curly = curly_stack_peek();
-    printf("CURRENT CURLY: %c, %c\n", current_curly, next_curly);
-    if(next_curly == 'I' || current_curly == 'I'){
-      create_label(file);
-    } else if(next_curly == 'W' || next_curly == 'W'){
-      fprintf(file, "  cmp rax, rbx\n");
+    char *current_curly = curly_stack_pop();
+    char *next_curly = curly_stack_pop();
+
+    printf("CURRENT CURLY: %s, %s\n", current_curly, next_curly);
+    if(next_curly[0] == 'I'){
+      create_label(file, atoi(current_curly)-1);
+      global_curly = atoi(current_curly);
+    } else if(next_curly[0] == 'W'){
+      printf("WHO HA\n");
       create_end_loop(file);
-      create_label(file);
+      create_label(file, atoi(current_curly)-1);
+      global_curly = atoi(current_curly);
     }
+
 
     size_t stack_value = stack_pop();
     printf("STACK VALUE: %zu, %zu\n", stack_value, stack_size);
@@ -463,6 +517,7 @@ int generate_code(Node *root){
 
   traverse_tree(root, 0, file, 0);
   fclose(file);
+
 
   return 0;
 }
