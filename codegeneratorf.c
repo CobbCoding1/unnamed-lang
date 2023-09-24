@@ -122,16 +122,24 @@ void push(char *reg, FILE *file){
   stack_size++;
 }
 
-void push_var(size_t stack_pos, FILE *file){
+void push_var(size_t stack_pos, char *var_name, FILE *file){
+  //fprintf(file, "  mov [%s], r9\n", var_name);
+  //fprintf(file, "  mov r9, [%s]\n", var_name);
+  //fprintf(file, "  push r9\n");
   printf("Stack Size: %zu, Stack POS: %zu\n", stack_size, stack_pos);
   fprintf(file, "  push QWORD [rsp + %zu]\n", (stack_size - stack_pos) * 8);
   stack_size++;
 }
 
-void modify_var(size_t stack_pos, char *new_value, FILE *file){
-  printf("Stack Size: %zu, Stack POS: %zu\n", stack_size, stack_pos);
-  fprintf(file, "  mov QWORD [rsp + %zu], %s\n", (stack_size - (stack_pos)) * 8, new_value);
-  //fprintf(file, "  push QWORD [rsp + %zu]\n", (stack_size - stack_pos) * 8);
+void modify_var(size_t stack_pos, char *new_value, char *var_name, FILE *file){
+  printf("Stack Size: %zu, Stck POS: %zu\n", stack_size, stack_pos);
+  //fprintf(file, "  mov [%s], rax\n", var_name);
+  //fprintf(file, "  mov r9, %s\n", new_value);
+  //fprintf(file, "  mov [%s], r9\n", var_name);
+  //fprintf(file, "  mov r9, [%s]\n", var_name);
+  //fprintf(file, "  push r9\n");
+  fprintf(file, "  mov QWORD [rsp + %zu], %s\n", ((stack_size) - (stack_pos)) * 8, new_value);
+  fprintf(file, "  push QWORD [rsp + %zu]\n", (stack_size - stack_pos) * 8);
 }
 
 void pop(char *reg, FILE *file){
@@ -175,7 +183,7 @@ int mov_if_var_or_not(char *reg, Node *node, FILE *file){
       printf("ERROR: Variable %s not declared in current scope\n", node->value);
       exit(1);
     }
-    push_var(*value, file);
+    push_var(*value, node->value, file);
     pop(reg, file);
     return 0;
   }
@@ -207,12 +215,14 @@ Node *generate_operator_code(Node *node, FILE *file){
         fprintf(file, "  sub rax, rbx\n");
         break;
       case DIV:
+        fprintf(file, "  xor rdx, rdx\n");
         fprintf(file, "  div rbx\n");
         break;
       case MUL:
         fprintf(file, "  mul rbx\n");
         break;
       case MOD:
+        fprintf(file, "  xor rdx, rdx\n");
         fprintf(file, "  div rbx\n");
         break;
       case NOT_OPERATOR:
@@ -236,12 +246,14 @@ Node *generate_operator_code(Node *node, FILE *file){
       fprintf(file, "  sub rax, rbx\n");
       break;
     case DIV:
+      fprintf(file, "  xor rdx, rdx\n");
       fprintf(file, "  div rbx\n");
       break;
     case MUL:
       fprintf(file, "  mul rbx\n");
       break;
     case MOD:
+      fprintf(file, "  xor rdx, rdx\n");
       fprintf(file, "  div rbx\n");
       break;
     case NOT_OPERATOR:
@@ -270,15 +282,22 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     // Push
     Node *value = malloc(sizeof(Node));
     value = node->left->left->left;
+    //fprintf(file, "section .data\n");
+    //fprintf(file, "  %s dq 0\n", node->left->value);
+    //fprintf(file, "section .text\n");
     if(value->type == IDENTIFIER){
       size_t *var_value = malloc(sizeof(size_t));
       var_value = hashmap_get(&hashmap, value->value, strlen(value->value));
+      if(var_value != 0){
+        printf("ERROR\n");
+        exit(1);
+      }
       printf("VAR VALUE: %zu, value: %s\n", *var_value, value->value);
       if(var_value == NULL){
         printf("ERROR: %s Not Declared In Current Context\n", value->value);
         exit(1);
       }
-      push_var(*var_value, file);
+      push_var(*var_value, value->value, file);
     } else if(value->type == INT) {
       push(value->value, file);
     } else if(value->type == OPERATOR){
@@ -287,6 +306,17 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
       printf("ERROR\n");
       exit(1);
     }
+    //pop("rax", file);
+    size_t *var_location = malloc(sizeof(size_t));
+    //var_location = hashmap_get(&hashmap, node->left->value, strlen(node->left->value));
+    //printf("node->left->value: %s\n", node->left->value);
+    //if(var_location == NULL){
+    //  printf("ERROR: var location\n");
+    //  exit(1);
+    //}
+    //printf("VARLOCATION: %zu\n", *var_location);
+    //push_var(*var_location, node->left->value, file);
+    //fprintf(file, "  mov [%s], rax\n", node->left->value);
     size_t *cur_size = malloc(sizeof(size_t));
     *cur_size = stack_size;
     if(hashmap_get(&hashmap, node->left->value, strlen(node->left->value)) != NULL){
@@ -369,6 +399,10 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     free(text);
     fprintf(file, "  syscall\n");
     printf("WRITE\n\n\n\n\n\n\n");
+    Node *tmp = malloc(sizeof(Node));
+    tmp = node->right->right;
+    node->right = NULL;
+    node = tmp;
   }
 
   if(strcmp(node->value, "(") == 0){
@@ -387,7 +421,6 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
   }
   if(node->type == IDENTIFIER){
     if(syscall_number == 60){
-       fprintf(file, "  mov rax, %d\n", syscall_number);
        size_t *var_value = malloc(sizeof(size_t));
        var_value = hashmap_get(&hashmap, node->value, strlen(node->value));
        printf("NODE VALUE: %s, %zu, %d\n", node->value, current_stack_size[current_stack_size_size], current_stack_size_size);
@@ -396,8 +429,9 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
          exit(1);
        } else {
        }
-       push_var(*var_value, file);
+       push_var(*var_value, node->value, file);
        pop("rdi", file);
+       fprintf(file, "  mov rax, %d\n", syscall_number);
        fprintf(file, "  syscall\n");
        syscall_number = 0;
     } else {
@@ -410,8 +444,10 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
 
       Node *value = node->left->left;
         printf("VAR VALUE: %s\n", value->value);
-      size_t *var_value = malloc(sizeof(size_t));
+      size_t *var_location = malloc(sizeof(size_t));
+      var_location = hashmap_get(&hashmap, node->value, strlen(node->value));
       if(value->type == IDENTIFIER){
+        size_t *var_value = malloc(sizeof(size_t));
         var_value = hashmap_get(&hashmap, value->value, strlen(value->value));
         printf("IDENTIFIER VALUE :%zu\n", *var_value);
         if(var_value == NULL){
@@ -431,7 +467,8 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
       *cur_size = stack_size;
 
       pop("rax", file);
-      modify_var(*var_value, "rax", file);
+      printf("MODIFY VAR VALUE: %zu\n", *var_location);
+      modify_var(*var_location+1, "rax", node->value, file);
       /*if(hashmap_remove(&hashmap, node->value, strlen(node->value)) != 0){
         printf("ERROR: Could not remove\n");
         ok

@@ -1,6 +1,14 @@
-int x = 0;
-while(x less 5){
-  write("INFINITY", 9);
+int x = 1;
+while(x neq 100){
+  int remainder = x % 3;
+  int remainderagain = x % 5;
+  if(remainder eq 0){
+    write("FIZZ", 4);
+  }
+  if(remainderagain eq 0){
+    write("BUZZ", 4);
+  }
+  write("", 1);
   x = x + 1;
 }
 exit(x);
