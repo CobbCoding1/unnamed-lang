@@ -1,0 +1,6 @@
+int x = 0;
+while(x less 5){
+  write("INFINITY", 9);
+  x = x + 1;
+}
+exit(x);

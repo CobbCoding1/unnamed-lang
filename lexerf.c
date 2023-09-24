@@ -10,6 +10,7 @@ typedef enum {
   SEPARATOR,
   OPERATOR,
   IDENTIFIER,
+  STRING,
   COMP,
   END_OF_TOKENS,
 } TokenType;
@@ -42,6 +43,9 @@ void print_token(Token token){
       break;
     case IDENTIFIER:
       printf(" TOKEN TYPE: IDENTIFIER\n");
+      break;
+    case STRING:
+      printf(" TOKEN TYPE: STRING\n");
       break;
     case COMP:
       printf(" TOKEN TYPE: COMPARATOR\n");
@@ -95,6 +99,9 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
   } else if(strcmp(keyword, "while") == 0){
     token->type = KEYWORD;
     token->value = "WHILE";
+  } else if(strcmp(keyword, "write") == 0){
+    token->type = KEYWORD;
+    token->value = "WRITE";
   } else if(strcmp(keyword, "eq") == 0){
     token->type = COMP;
     token->value = "EQ";
@@ -111,6 +118,23 @@ Token *generate_keyword_or_identifier(char *current, int *current_index){
     token->type = IDENTIFIER;
     token->value = keyword;
   }
+  return token;
+}
+
+Token *generate_string_token(char *current, int *current_index){
+  Token *token = malloc(sizeof(Token));
+  char *value = malloc(sizeof(char) * 64);
+  int value_index = 0;
+  *current_index += 1;
+  while(current[*current_index] != '"'){
+    value[value_index] = current[*current_index];
+    printf("current: %c\n", current[*current_index]);
+    value_index++;
+    *current_index += 1;
+  }
+  value[value_index] = '\0';
+  token->type = STRING;
+  token->value = value;
   return token;
 }
 
@@ -157,9 +181,12 @@ Token *lexer(FILE *file){
       token = generate_separator_or_operator(current, &current_index, SEPARATOR);
       tokens[tokens_index] = *token;
       tokens_index++;
+    } else if(current[current_index] == ','){
+      token = generate_separator_or_operator(current, &current_index, SEPARATOR);
+      tokens[tokens_index] = *token;
+      tokens_index++;
     } else if(current[current_index] == '('){
       token = generate_separator_or_operator(current, &current_index, SEPARATOR);
-      printf("CURRENT %s\n", token->value);
       tokens[tokens_index] = *token;
       tokens_index++;
     } else if(current[current_index] == ')'){
@@ -198,7 +225,11 @@ Token *lexer(FILE *file){
       token = generate_separator_or_operator(current, &current_index, OPERATOR);
       tokens[tokens_index] = *token;
       tokens_index++;
-    } else if(isdigit(current[current_index])){
+    } else if(current[current_index] == '"'){
+      token = generate_string_token(current, &current_index);
+      tokens[tokens_index] = *token;
+      tokens_index++;
+    }else if(isdigit(current[current_index])){
       token = generate_number(current, &current_index); 
       tokens[tokens_index] = *token;
       tokens_index++;
@@ -208,8 +239,7 @@ Token *lexer(FILE *file){
       tokens[tokens_index] = *token;
       tokens_index++;
       current_index--;
-    }
-
+    } 
     free(token);
     current_index++;
   }

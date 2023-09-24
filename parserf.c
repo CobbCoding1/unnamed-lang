@@ -728,6 +728,49 @@ Node *create_if_statement(Token *current_token, Node *current){
   return current;
 }
 
+Node *handle_write_node(Token *current_token, Node *current){
+  Node *write_node = NULL;
+  write_node = init_node(write_node, current_token->value, current_token->type);
+  current->left = write_node;
+  current = write_node;
+  
+  current_token++;
+
+  handle_token_errors("ERROR: Expected (", current_token, SEPARATOR);
+
+  current_token++;
+  printf("CURRENT TOKEN: %s\n", current_token->value);
+  handle_token_errors("ERROR: Expected String Literal", current_token, STRING);
+
+  Node *string_node = NULL;
+  string_node = init_node(string_node, current_token->value, current_token->type);
+  current->left = string_node;
+
+  current_token++;
+
+  handle_token_errors("ERROR: Expected ,", current_token, SEPARATOR);
+
+  current_token++;
+
+  Node *number_node = NULL;
+  number_node = init_node(number_node, current_token->value, current_token->type);
+  current->right = number_node;
+
+  current_token++;
+
+  handle_token_errors("ERROR: Expected )", current_token, SEPARATOR);
+
+  current_token++;
+
+  handle_token_errors("ERROR: Expected ;", current_token, SEPARATOR);
+
+  Node *semi_node = NULL;
+  semi_node = init_node(semi_node, current_token->value, current_token->type);
+  number_node->right = semi_node; 
+  current = semi_node;
+  return current;
+}
+
 Node *parser(Token *tokens){
   Token *current_token = &tokens[0];
   Node *root = malloc(sizeof(Node));
@@ -750,15 +793,14 @@ Node *parser(Token *tokens){
         if(strcmp(current_token->value, "EXIT") == 0){
           current = handle_exit_syscall(root, current_token, current);
           printf("CURRENT TOKEN HERE IS : %s\n", current_token->value);
-        }
-        if(strcmp(current_token->value, "INT") == 0){
+        } else if(strcmp(current_token->value, "INT") == 0){
           current = create_variables(current_token, current);
-        }
-        if(strcmp(current_token->value, "IF") == 0){
+        } else if(strcmp(current_token->value, "IF") == 0){
           current = create_if_statement(current_token, current);
-        }
-        if(strcmp(current_token->value, "WHILE") == 0){
+        } else if(strcmp(current_token->value, "WHILE") == 0){
           current = create_if_statement(current_token, current);
+        } else if(strcmp(current_token->value, "WRITE") == 0){
+          current = handle_write_node(current_token, current);
         }
         break;
       case SEPARATOR:
@@ -796,6 +838,8 @@ Node *parser(Token *tokens){
         } else {
           current_token++;
         }
+        break;
+      case STRING:
         break;
       case COMP:
         break;

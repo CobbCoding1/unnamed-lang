@@ -20,6 +20,7 @@ size_t stack_size = 0;
 int current_stack_size_size = 0;
 int label_number = 0;
 int loop_label_number = 0;
+int text_label = 0;
 //int if_label_number = 0;
 size_t current_stack_size[MAX_STACK_SIZE_SIZE];
 const unsigned initial_size = 100;
@@ -298,9 +299,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     }
     node->left = NULL;
 
-  }
-
-  if(strcmp(node->value, "IF") == 0){
+  } else if(strcmp(node->value, "IF") == 0){
     curly_stack_push("IF");
     Node *current = malloc(sizeof(Node));
     current = node->left->left;
@@ -324,8 +323,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     printf("IF LABEL VALUE: %s\n", current->value);
     if_label(file, current->value, curly_count);
     node->left->left = NULL;
-  }
-  if(strcmp(node->value, "WHILE") == 0){
+  } else if(strcmp(node->value, "WHILE") == 0){
     curly_stack_push("W");
     create_loop_label(file);
     Node *current = malloc(sizeof(Node));
@@ -358,6 +356,19 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
       exit(1);
     }
     node->left->left = NULL;
+  } else if(strcmp(node->value, "WRITE") == 0){
+    char *text = malloc(sizeof(char) * 8);
+    sprintf(text, "text%d", text_label);
+    fprintf(file, "section .data\n");
+    fprintf(file, " %s db \"%s\", 10\n", text, node->left->value);
+    fprintf(file, "section .text\n");
+    mov("rax", "1", file);
+    mov("rdx", node->right->value, file);
+    mov("rsi", text, file);
+    text_label++;
+    free(text);
+    fprintf(file, "  syscall\n");
+    printf("WRITE\n\n\n\n\n\n\n");
   }
 
   if(strcmp(node->value, "(") == 0){
