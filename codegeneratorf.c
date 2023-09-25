@@ -411,6 +411,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
       fprintf(file, "section .text\n");
       mov("rax", "1", file);
       mov("rdx", node->right->value, file);
+      mov("rdi", "1", file);
       mov("rsi", text, file);
       text_label++;
       free(text);

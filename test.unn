@@ -1,15 +1,1 @@
-int x = 1;
-while(x neq 100){
-  int remainderthree = x % 3;
-  int remainderfive = x % 5;
-  if(remainderthree eq 0){
-    write("FIZZ", 4);
-  }
-  if(remainderfive eq 0){
-    write("BUZZ", 4);
-  }
-  write("", 1);
-  write(x, 2);
-  x = x + 1;
-}
 exit(0);
