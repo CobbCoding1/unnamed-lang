@@ -145,7 +145,10 @@ void modify_var(size_t stack_pos, char *new_value, char *var_name, FILE *file){
 void pop(char *reg, FILE *file){
   stack_size--;
   fprintf(file, "  pop %s\n", reg);
-  printf("STACK SIZE: %zu\n", stack_size);
+  printf("STaCK SIZE: %zu\n", stack_size);
+  if(stack_size > 1000){
+    exit(1);
+  }
 }
 
 void mov(char *reg1, char *reg2, FILE *file){
@@ -449,6 +452,7 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
        } else {
        }
        push_var(*var_value, node->value, file);
+       printf("POPPING\n");
        pop("rdi", file);
        fprintf(file, "  mov rax, %d\n", syscall_number);
        fprintf(file, "  syscall\n");
