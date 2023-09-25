@@ -740,7 +740,9 @@ Node *handle_write_node(Token *current_token, Node *current){
 
   current_token++;
   printf("CURRENT TOKEN: %s\n", current_token->value);
-  handle_token_errors("ERROR: Expected String Literal", current_token, STRING);
+  if(current_token->type != STRING && current_token->type != IDENTIFIER){
+    handle_token_errors("ERROR: Expected String Literal", current_token, STRING);
+  }
 
   Node *string_node = NULL;
   string_node = init_node(string_node, current_token->value, current_token->type);

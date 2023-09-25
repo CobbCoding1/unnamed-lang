@@ -388,16 +388,34 @@ void traverse_tree(Node *node, int is_left, FILE *file, int syscall_number){
     node->left->left = NULL;
   } else if(strcmp(node->value, "WRITE") == 0){
     char *text = malloc(sizeof(char) * 8);
-    sprintf(text, "text%d", text_label);
-    fprintf(file, "section .data\n");
-    fprintf(file, " %s db \"%s\", 10\n", text, node->left->value);
-    fprintf(file, "section .text\n");
-    mov("rax", "1", file);
-    mov("rdx", node->right->value, file);
-    mov("rsi", text, file);
-    text_label++;
-    free(text);
-    fprintf(file, "  syscall\n");
+    char *identifier = malloc(sizeof(char)*8);
+    if(node->left->type == IDENTIFIER){
+      identifier = hashmap_get(&hashmap, node->left->value, strlen(node->left->value));
+      if(identifier == NULL){
+        printf("ERROR: Value is not defined\n");
+        exit(1);
+      }
+      push_var(*identifier, node->right->value, file);
+      mov("rdi", "printf_format", file);
+      pop("rsi", file);
+
+      fprintf(file, "  xor rax, rax\n");
+
+      fprintf(file, "  call printf WRT ..plt\n");
+      
+    } else {
+      identifier = node->left->value;
+      sprintf(text, "text%d", text_label);
+      fprintf(file, "section .data\n");
+      fprintf(file, " %s db \"%s\", 10\n", text, node->left->value);
+      fprintf(file, "section .text\n");
+      mov("rax", "1", file);
+      mov("rdx", node->right->value, file);
+      mov("rsi", text, file);
+      text_label++;
+      free(text);
+      fprintf(file, "  syscall\n");
+    }
     printf("WRITE\n\n\n\n\n\n\n");
     Node *tmp = malloc(sizeof(Node));
     tmp = node->right->right;
@@ -558,9 +576,12 @@ int generate_code(Node *root){
 
   assert(hashmap_create(initial_size, &hashmap) == 0 && "ERROR: Could not create hashmap\n");
 
+  fprintf(file, "section .data\n");
+  fprintf(file, "  printf_format: db '%s', 10, 0\n", "%d");
+  fprintf(file, "extern printf\n");
+  fprintf(file, "global main\n");
   fprintf(file, "section .text\n");
-  fprintf(file, "  global _start\n\n");
-  fprintf(file, "_start:\n");
+  fprintf(file, "main:\n");
   //print_tree(root, 0, "root");
 
   traverse_tree(root, 0, file, 0);
