@@ -1,15 +1,11 @@
 # Unnamed-lang
 A programming language compiler built using C. For learning purposes only!
 
-Currently can handle nested scopes, variables, variable redeclaration, the major operations, and exit syscall. 
+The goal of this language was to compile FizzBuzz entirely, which meant writing to stdout, loops, mod operator, and if statements were required, which were all implemented.
+To see how the syntax looks, checks the examples folder.
 
-The goal of the language is to be able to write FizzBuzz properly (as a minimum, it may go beyond that).
-This means a few things will have to be implemented, which will be usable for many other projects.
+The project is not planned to go any further than its current state.
 
-So, at a minimum there will be these features,\
-Writing to console,\
-Some form of loops,\
-Mod operator or some implementation using division and loops,\
-If statements.
-
-Once that is achieved I will decide whether to continue developing or not.
+Was all streamed live on Twitch, and the VODs are available on my YouTube.
+https://www.youtube.com/@cobbcoding/
+https://www.twitch.tv/cobbcoding/
